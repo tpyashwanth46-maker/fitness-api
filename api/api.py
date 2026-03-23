@@ -22,13 +22,13 @@ def rate_limit_handler(request, exc):
     )
 
 # ---------------- API KEY ----------------
-API_KEY = os.getenv("API_KEY")
-
-if not API_KEY:
-    raise ValueError("API_KEY is not set in environment variables")
-
 def verify_api_key(x_api_key: str = Header(None)):
-    if x_api_key != API_KEY:
+    current_key = os.getenv("API_KEY")   # get latest value every request
+
+    print("Received:", x_api_key)
+    print("Expected:", current_key)
+
+    if x_api_key != current_key:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
 # ---------------- PATH FIX ----------------
