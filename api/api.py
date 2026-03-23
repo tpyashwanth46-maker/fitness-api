@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
 import sys
 import os
 import joblib
@@ -75,6 +75,7 @@ def health():
 @limiter.limit("10/minute")
 @app.post("/predict_calories")
 def predict_calories(
+    request: Request,
     age: int,
     height: float,
     weight: float,
@@ -109,6 +110,7 @@ def predict_calories(
 @app.post("/predict_bio_age")
 def predict_bio_age(
     age: int,
+    request: Request,
     gender: int,
     body_fat: float,
     diastolic: float,
