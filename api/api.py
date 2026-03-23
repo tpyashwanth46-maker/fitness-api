@@ -125,7 +125,7 @@ def predict_bio_age(
         raise HTTPException(status_code=500, detail="Bio age model not loaded")
 
     try:
-        features = np.array([[
+        features = np.array([
             age,
             gender,
             body_fat,
@@ -135,7 +135,7 @@ def predict_bio_age(
             flexibility,
             situps,
             broad_jump
-        ]])
+        ]).reshape(1, -1)
 
         prediction = bio_age_model.predict(features)
 
