@@ -10,3 +10,4 @@ joblib
 whisper
 sounddevice
 pyttsx3
+slowapi
