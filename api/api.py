@@ -75,20 +75,27 @@ except Exception as e:
 
 @app.post("/register")
 def register(username: str, password: str):
-    conn = sqlite3.connect("fitness.db")
+    import sqlite3
+
+    conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
 
-    hashed_pw = hash_password(password)
-
     try:
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_pw))
+        hashed_pw = hash_password(password)
+
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            (username, hashed_pw)
+        )
         conn.commit()
-    except:
-        return {"error": "User already exists"}
 
-    conn.close()
-    return {"message": "User created successfully"}
+        return {"message": "User created successfully"}
 
+    except Exception as e:
+        return {"error": str(e)}   # 👈 IMPORTANT (to see real issue)
+
+    finally:
+        conn.close()
 
 @app.post("/login")
 def login(username: str, password: str):
