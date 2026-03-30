@@ -99,8 +99,12 @@ def register(username: str, password: str):
 
         return {"message": "User created successfully"}
 
+    except sqlite3.IntegrityError:
+        return {"error": "Username already exists"}
+
     except Exception as e:
-        return {"error": str(e)}   # 👈 IMPORTANT (to see real issue)
+        print("REGISTER ERROR:", e)   # 👈 keep for logs
+        return {"error": "Registration failed"}  # 👈 FIXED
 
     finally:
         conn.close()
