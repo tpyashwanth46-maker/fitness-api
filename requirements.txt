@@ -11,3 +11,5 @@ whisper
 sounddevice
 pyttsx3
 slowapi
+python-jose
+passlib[bcrypt]
