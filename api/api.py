@@ -20,7 +20,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth.password_handler import hash_password, verify_password
 from fastapi.security import HTTPBearer
-
+# 🔥 TEMPORARY DB RESET (remove later)
+if os.path.exists("fitness.db"):
+    os.remove("fitness.db")
 app = FastAPI()
 
 # ---------------- DB INIT ----------------
