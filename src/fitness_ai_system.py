@@ -14,6 +14,21 @@ import pyttsx3
 import time
 import os
 import requests   # ✅ NEW
+# ✅ ADD THIS FUNCTION HERE
+def get_token():
+    response = requests.post(
+        "https://fitness-api-691p.onrender.com/login",
+        params={
+            "username": "testuser",
+            "password": "1234"
+        }
+    )
+
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        print("Login failed:", response.text)
+        return None
 print("Waking up server...")
 
 try:
@@ -187,7 +202,7 @@ body_temp = get_number("Please say your body temperature")
 
 # ---------------- 🔥 CALORIES VIA API ----------------
 # ---------------- 🔥 CALORIES VIA API ----------------
-
+token = get_token()
 print("Calling Calories API...")
 
 try:
@@ -202,7 +217,8 @@ try:
             "body_temp": body_temp
         },
         headers={
-            "x-api-key": "askyashwanth346"
+            "x-api-key": "askyashwanth346",
+            "Authorization": f"Bearer {token}"
         },
         timeout=30
     )
@@ -256,7 +272,8 @@ try:
             "broad_jump": jump
         },
         headers={
-            "x-api-key": "askyashwanth346"
+            "x-api-key": "askyashwanth346",
+            "Authorization": f"Bearer {token}"
         },
         timeout=30
     )

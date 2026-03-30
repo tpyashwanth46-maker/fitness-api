@@ -1,15 +1,25 @@
-from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi import FastAPI, HTTPException, Header, Request, Depends
 import sys
 import os
 import joblib
 import numpy as np
+import sqlite3
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
 
+# ---------------- JWT IMPORTS ----------------
+from auth.jwt_handler import create_access_token, verify_token
+from auth.password_handler import hash_password, verify_password
+from fastapi.security import HTTPBearer
+
 app = FastAPI()
+
+# ---------------- DB INIT ----------------
+from database import create_table
+create_table()
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -21,12 +31,18 @@ def rate_limit_handler(request, exc):
         content={"detail": "Too many requests. Please try again later."}
     )
 
+# ---------------- JWT SECURITY ----------------
+security = HTTPBearer()
+
+def get_current_user(token=Depends(security)):
+    payload = verify_token(token.credentials)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return payload
+
 # ---------------- API KEY ----------------
 def verify_api_key(x_api_key: str = Header(None)):
-    current_key = os.getenv("API_KEY")   # get latest value every request
-
-    print("Received:", x_api_key)
-    print("Expected:", current_key)
+    current_key = os.getenv("API_KEY")
 
     if x_api_key != current_key:
         raise HTTPException(status_code=403, detail="Unauthorized")
@@ -53,6 +69,46 @@ except Exception as e:
     print("Model loading error:", e)
     calories_model = None
     bio_age_model = None
+
+
+# ---------------- AUTH ROUTES ----------------
+
+@app.post("/register")
+def register(username: str, password: str):
+    conn = sqlite3.connect("fitness.db")
+    cursor = conn.cursor()
+
+    hashed_pw = hash_password(password)
+
+    try:
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_pw))
+        conn.commit()
+    except:
+        return {"error": "User already exists"}
+
+    conn.close()
+    return {"message": "User created successfully"}
+
+
+@app.post("/login")
+def login(username: str, password: str):
+    conn = sqlite3.connect("fitness.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    conn.close()
+
+    if user is None:
+        return {"error": "User not found"}
+
+    if not verify_password(password, user[2]):
+        return {"error": "Invalid password"}
+
+    token = create_access_token({"sub": username})
+
+    return {"access_token": token}
 
 
 # ---------------- HOME ----------------
@@ -82,7 +138,8 @@ def predict_calories(
     duration: float,
     heart_rate: float,
     body_temp: float,
-    x_api_key: str = Header(None)
+    x_api_key: str = Header(None),
+    user=Depends(get_current_user)   # JWT added
 ):
     verify_api_key(x_api_key)
 
@@ -119,7 +176,8 @@ def predict_bio_age(
     flexibility: float,
     situps: int,
     broad_jump: float,
-    x_api_key: str = Header(None)
+    x_api_key: str = Header(None),
+    user=Depends(get_current_user)   # JWT added
 ):
     verify_api_key(x_api_key)
 
