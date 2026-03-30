@@ -12,6 +12,12 @@ from fastapi.responses import JSONResponse
 
 # ---------------- JWT IMPORTS ----------------
 from auth.jwt_handler import create_access_token, verify_token
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from auth.password_handler import hash_password, verify_password
 from fastapi.security import HTTPBearer
 
