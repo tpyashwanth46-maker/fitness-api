@@ -99,7 +99,7 @@ def register(username: str, password: str):
 
 @app.post("/login")
 def login(username: str, password: str):
-    conn = sqlite3.connect("fitness.db")
+    conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
@@ -108,7 +108,7 @@ def login(username: str, password: str):
     conn.close()
 
     if user is None:
-        return {"error": "User not found"}
+        raise HTTPException(status_code=404, detail="User not found")
 
     if not verify_password(password, user[2]):
         return {"error": "Invalid password"}
