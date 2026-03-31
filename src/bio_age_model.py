@@ -75,9 +75,10 @@ data["gender"] = data["gender"].fillna(0)
 
 # ---------------- CREATE BIOLOGICAL AGE COLUMN ----------------
 
-data["bio_age"] = (
-    data["age"]
-    + (data["body fat_%"] * 0.2)
+# 🔥 NEW PURE FITNESS-BASED BIO AGE
+
+raw_score = (
+    (data["body fat_%"] * 0.20)
     - (data["gripForce"] * 0.05)
     - (data["sit-ups counts"] * 0.03)
     - (data["sit and bend forward_cm"] * 0.02)
@@ -85,6 +86,15 @@ data["bio_age"] = (
     + (data["systolic"] * 0.03)
     + (data["diastolic"] * 0.02)
 )
+
+# Normalize (0–1)
+normalized = (raw_score - raw_score.min()) / (raw_score.max() - raw_score.min())
+
+# Scale to 16.2–100
+data["bio_age"] = 16.2 + normalized * (100 - 16.2)
+
+# Safety clamp
+data["bio_age"] = data["bio_age"].clip(16.2, 100)
 
 print("\nSample Biological Age Values:")
 print(data[["age", "bio_age"]].head())
