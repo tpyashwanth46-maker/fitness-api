@@ -85,11 +85,11 @@ sys_penalty = abs(data["systolic"] - ideal_systolic) * 0.3
 dia_penalty = abs(data["diastolic"] - ideal_diastolic) * 0.2
 
 # 🔧 Increase fitness influence
-grip_score = data["gripForce"] * 0.15
-situp_score = data["sit-ups counts"] * 0.15
-flex_score = data["sit and bend forward_cm"] * 0.08
-jump_score = data["broad jump_cm"] * 0.08
-
+# 🔧 Reduce fitness strength (main fix)
+grip_score = data["gripForce"] * 0.08
+situp_score = data["sit-ups counts"] * 0.08
+flex_score = data["sit and bend forward_cm"] * 0.04
+jump_score = data["broad jump_cm"] * 0.04
 # 🔧 Keep penalty but reduce harshness
 low_fitness_penalty = (
     (data["gripForce"] < 25) * 3 +
@@ -105,7 +105,7 @@ raw_score = (
 # 🔧 Lower base age
 base_age = 25
 # 🔧 scale raw score to avoid collapse
-scaled_score = raw_score * 0.4
+scaled_score = raw_score * 0.6
 
 data["bio_age"] = base_age + scaled_score
 
