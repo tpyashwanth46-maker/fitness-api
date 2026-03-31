@@ -25,7 +25,6 @@ try:
 
         # Rename columns to match dataset
         new_data = new_data.rename(columns={
-            "age": "age",
             "gender": "gender",
             "body_fat": "body fat_%",
             "diastolic": "diastolic",
@@ -39,7 +38,6 @@ try:
         # Select only required columns
         new_data = new_data[
             [
-                "age",
                 "gender",
                 "body fat_%",
                 "diastolic",
@@ -146,7 +144,6 @@ print("\nEDA graphs saved in reports/plots folder.")
 
 X = data[
     [
-    
         "gender",
         "body fat_%",
         "diastolic",
