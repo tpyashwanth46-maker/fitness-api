@@ -104,10 +104,13 @@ raw_score = (
 
 # 🔧 Lower base age
 base_age = 25
-data["bio_age"] = base_age + raw_score
+# 🔧 scale raw score to avoid collapse
+scaled_score = raw_score * 0.4
 
-# 🔧 Keep realistic bounds
-data["bio_age"] = data["bio_age"].clip(16, 90)
+data["bio_age"] = base_age + scaled_score
+
+# keep minimum = 16 but avoid constant values
+data["bio_age"] = data["bio_age"].clip(16, 80)
 
 print("\nSample Biological Age Values:")
 print(data[["age", "bio_age"]].head())
