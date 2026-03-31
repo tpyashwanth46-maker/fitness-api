@@ -16,15 +16,28 @@ import os
 import requests   # ✅ NEW
 # ✅ ADD THIS FUNCTION HERE
 def get_token():
+    import requests
+
+    BASE_URL = "https://fitness-api-691p.onrender.com"
+
     username = input("Enter username: ")
     password = input("Enter password: ")
 
+    choice = input("Do you have an account? (yes/no): ")
+
+    # 🔹 Register if new user
+    if choice.lower() == "no":
+        print("Creating account...")
+        reg_response = requests.post(
+            f"{BASE_URL}/register",
+            params={"username": username, "password": password}
+        )
+        print("Register Response:", reg_response.json())
+
+    # 🔹 Login
     response = requests.post(
-        "https://fitness-api-691p.onrender.com/login",
-        params={
-            "username": username,
-            "password": password
-        }
+        f"{BASE_URL}/login",
+        params={"username": username, "password": password}
     )
 
     print("Login Status:", response.status_code)
@@ -34,6 +47,7 @@ def get_token():
         data = response.json()
 
         if "access_token" in data:
+            print("Token received")
             return data["access_token"]
         else:
             print("Token missing:", data)
