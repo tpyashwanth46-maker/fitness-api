@@ -234,7 +234,7 @@ print("Calling Calories API...")
 try:
     response = requests.post(
         "https://fitness-api-691p.onrender.com/predict_calories",
-        params={
+        json={
             "age": age,
             "height": height,
             "weight": weight,
@@ -286,8 +286,7 @@ print("Calling Bio Age API...")
 try:
     response = requests.post(
         "https://fitness-api-691p.onrender.com/predict_bio_age",
-        params={
-            "age": age,
+        json={
             "gender": gender,
             "body_fat": bodyfat,
             "diastolic": diastolic,
