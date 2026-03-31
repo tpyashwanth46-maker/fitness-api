@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 import sys
 import os
 import joblib
@@ -167,7 +167,9 @@ def health():
 # ---------------- CALORIES API ----------------
 @limiter.limit("10/minute")
 @app.post("/predict_calories")
+
 def predict_calories(
+    request: Request,
     data: CaloriesInput,
     x_api_key: str = Header(None),
     user=Depends(get_current_user)
@@ -205,6 +207,7 @@ def predict_calories(
 @limiter.limit("10/minute")
 @app.post("/predict_bio_age")
 def predict_bio_age(
+    request: Request,   # ✅ FIXED (added only this)
     data: BioAgeInput,
     x_api_key: str = Header(None),
     user=Depends(get_current_user)
