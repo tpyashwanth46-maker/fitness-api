@@ -79,19 +79,22 @@ ideal_body_fat = 15
 ideal_systolic = 120
 ideal_diastolic = 80
 
-fat_penalty = abs(data["body fat_%"] - ideal_body_fat) * 0.9
-sys_penalty = abs(data["systolic"] - ideal_systolic) * 0.5
-dia_penalty = abs(data["diastolic"] - ideal_diastolic) * 0.3
+# 🔧 Reduce penalty dominance
+fat_penalty = abs(data["body fat_%"] - ideal_body_fat) * 0.5
+sys_penalty = abs(data["systolic"] - ideal_systolic) * 0.3
+dia_penalty = abs(data["diastolic"] - ideal_diastolic) * 0.2
 
-grip_score = data["gripForce"] * 0.06
-situp_score = data["sit-ups counts"] * 0.06
-flex_score = data["sit and bend forward_cm"] * 0.025
-jump_score = data["broad jump_cm"] * 0.02
+# 🔧 Increase fitness influence
+grip_score = data["gripForce"] * 0.15
+situp_score = data["sit-ups counts"] * 0.15
+flex_score = data["sit and bend forward_cm"] * 0.08
+jump_score = data["broad jump_cm"] * 0.08
 
+# 🔧 Keep penalty but reduce harshness
 low_fitness_penalty = (
-    (data["gripForce"] < 25) * 5 +
-    (data["sit-ups counts"] < 20) * 5 +
-    (data["broad jump_cm"] < 30) * 5
+    (data["gripForce"] < 25) * 3 +
+    (data["sit-ups counts"] < 20) * 3 +
+    (data["broad jump_cm"] < 30) * 3
 )
 
 raw_score = (
@@ -99,10 +102,12 @@ raw_score = (
     - grip_score - situp_score - flex_score - jump_score
 )
 
-base_age = 30
+# 🔧 Lower base age
+base_age = 25
 data["bio_age"] = base_age + raw_score
 
-data["bio_age"] = data["bio_age"].clip(16.2, 100)
+# 🔧 Keep realistic bounds
+data["bio_age"] = data["bio_age"].clip(16, 90)
 
 print("\nSample Biological Age Values:")
 print(data[["age", "bio_age"]].head())
