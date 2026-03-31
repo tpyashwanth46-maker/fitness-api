@@ -75,41 +75,54 @@ data["gender"] = data["gender"].fillna(0)
 
 # 🔥 FINAL BALANCED PENALTY MODEL
 
+# ---------------- BIO AGE CALCULATION ----------------
+
 ideal_body_fat = 15
 ideal_systolic = 120
 ideal_diastolic = 80
 
-# 🔧 Reduce penalty dominance
-fat_penalty = abs(data["body fat_%"] - ideal_body_fat) * 0.5
-sys_penalty = abs(data["systolic"] - ideal_systolic) * 0.3
-dia_penalty = abs(data["diastolic"] - ideal_diastolic) * 0.2
+# 1. BODY FAT (highest penalty)
+fat_penalty = abs(data["body fat_%"] - ideal_body_fat) * 1.2
 
-# 🔧 Increase fitness influence
-# 🔧 Reduce fitness strength (main fix)
-grip_score = data["gripForce"] * 0.08
+# 3. BP (moderate-high)
+sys_penalty = abs(data["systolic"] - ideal_systolic) * 0.6
+dia_penalty = abs(data["diastolic"] - ideal_diastolic) * 0.4
+
+# FITNESS SCORES (priority-based)
+
+# 2. GRIP (strong)
+grip_score = data["gripForce"] * 0.12
+
+# 4. SITUPS
 situp_score = data["sit-ups counts"] * 0.08
-flex_score = data["sit and bend forward_cm"] * 0.04
-jump_score = data["broad jump_cm"] * 0.04
-# 🔧 Keep penalty but reduce harshness
+
+# 5. BROAD JUMP
+jump_score = data["broad jump_cm"] * 0.05
+
+# 6. FLEXIBILITY (least)
+flex_score = data["sit and bend forward_cm"] * 0.03
+
+# LOW FITNESS PENALTY
 low_fitness_penalty = (
-    (data["gripForce"] < 25) * 3 +
+    (data["gripForce"] < 25) * 4 +
     (data["sit-ups counts"] < 20) * 3 +
     (data["broad jump_cm"] < 30) * 3
 )
 
+# FINAL SCORE
 raw_score = (
     fat_penalty + sys_penalty + dia_penalty + low_fitness_penalty
-    - grip_score - situp_score - flex_score - jump_score
+    - grip_score - situp_score - jump_score - flex_score
 )
 
-# 🔧 Lower base age
-base_age = 25
-# 🔧 scale raw score to avoid collapse
+# SCALE
 scaled_score = raw_score * 0.6
 
+# FINAL BIO AGE
+base_age = 25
 data["bio_age"] = base_age + scaled_score
 
-# keep minimum = 16 but avoid constant values
+# CLIP RANGE
 data["bio_age"] = data["bio_age"].clip(16, 80)
 
 print("\nSample Biological Age Values:")
