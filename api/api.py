@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header, Request, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends
 import sys
 import os
 import joblib
@@ -12,15 +12,34 @@ from fastapi.responses import JSONResponse
 
 # ---------------- JWT IMPORTS ----------------
 from auth.jwt_handler import create_access_token, verify_token
-import sys
-import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth.password_handler import hash_password, verify_password
 from fastapi.security import HTTPBearer
-# 🔥 TEMPORARY DB RESET (remove later)
+
+# ✅ ADD THIS (NEW)
+from pydantic import BaseModel
+
+class CaloriesInput(BaseModel):
+    age: int
+    height: float
+    weight: float
+    duration: float
+    heart_rate: float
+    body_temp: float
+
+class BioAgeInput(BaseModel):
+    gender: int
+    body_fat: float
+    diastolic: float
+    systolic: float
+    grip_force: float
+    flexibility: float
+    situps: int
+    broad_jump: float
+
 
 app = FastAPI()
 
@@ -102,8 +121,8 @@ def register(username: str, password: str):
         return {"error": "Username already exists"}
 
     except Exception as e:
-        print("REGISTER ERROR:", e)   # 👈 keep for logs
-        return {"error": "Registration failed"}  # 👈 FIXED
+        print("REGISTER ERROR:", e)
+        return {"error": "Registration failed"}
 
     finally:
         conn.close()
@@ -149,15 +168,9 @@ def health():
 @limiter.limit("10/minute")
 @app.post("/predict_calories")
 def predict_calories(
-    request: Request,
-    age: int,
-    height: float,
-    weight: float,
-    duration: float,
-    heart_rate: float,
-    body_temp: float,
+    data: CaloriesInput,
     x_api_key: str = Header(None),
-    user=Depends(get_current_user)   # JWT added
+    user=Depends(get_current_user)
 ):
     verify_api_key(x_api_key)
 
@@ -165,9 +178,17 @@ def predict_calories(
         raise HTTPException(status_code=500, detail="Calories model not loaded")
 
     try:
-        BMI = weight / ((height / 100) ** 2)
+        BMI = data.weight / ((data.height / 100) ** 2)
 
-        features = np.array([[age, height, weight, duration, heart_rate, body_temp, BMI]])
+        features = np.array([[
+            data.age,
+            data.height,
+            data.weight,
+            data.duration,
+            data.heart_rate,
+            data.body_temp,
+            BMI
+        ]])
 
         prediction = calories_model.predict(features)
 
@@ -184,18 +205,9 @@ def predict_calories(
 @limiter.limit("10/minute")
 @app.post("/predict_bio_age")
 def predict_bio_age(
-    age: int,
-    request: Request,
-    gender: int,
-    body_fat: float,
-    diastolic: float,
-    systolic: float,
-    grip_force: float,
-    flexibility: float,
-    situps: int,
-    broad_jump: float,
+    data: BioAgeInput,
     x_api_key: str = Header(None),
-    user=Depends(get_current_user)   # JWT added
+    user=Depends(get_current_user)
 ):
     verify_api_key(x_api_key)
 
@@ -204,15 +216,14 @@ def predict_bio_age(
 
     try:
         features = np.array([
-            age,
-            gender,
-            body_fat,
-            diastolic,
-            systolic,
-            grip_force,
-            flexibility,
-            situps,
-            broad_jump
+            data.gender,
+            data.body_fat,
+            data.diastolic,
+            data.systolic,
+            data.grip_force,
+            data.flexibility,
+            data.situps,
+            data.broad_jump
         ]).reshape(1, -1)
 
         prediction = bio_age_model.predict(features)
