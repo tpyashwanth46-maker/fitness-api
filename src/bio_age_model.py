@@ -75,25 +75,35 @@ data["gender"] = data["gender"].fillna(0)
 
 # ---------------- CREATE BIOLOGICAL AGE COLUMN ----------------
 
-# 🔥 NEW PURE FITNESS-BASED BIO AGE
+# 🔥 FINAL BALANCED PENALTY MODEL
 
-raw_score = (
-    (data["body fat_%"] * 0.20)
-    - (data["gripForce"] * 0.05)
-    - (data["sit-ups counts"] * 0.03)
-    - (data["sit and bend forward_cm"] * 0.02)
-    - (data["broad jump_cm"] * 0.01)
-    + (data["systolic"] * 0.03)
-    + (data["diastolic"] * 0.02)
+ideal_body_fat = 15
+ideal_systolic = 120
+ideal_diastolic = 80
+
+fat_penalty = abs(data["body fat_%"] - ideal_body_fat) * 0.9
+sys_penalty = abs(data["systolic"] - ideal_systolic) * 0.5
+dia_penalty = abs(data["diastolic"] - ideal_diastolic) * 0.3
+
+grip_score = data["gripForce"] * 0.06
+situp_score = data["sit-ups counts"] * 0.06
+flex_score = data["sit and bend forward_cm"] * 0.025
+jump_score = data["broad jump_cm"] * 0.02
+
+low_fitness_penalty = (
+    (data["gripForce"] < 25) * 5 +
+    (data["sit-ups counts"] < 20) * 5 +
+    (data["broad jump_cm"] < 30) * 5
 )
 
-# Normalize (0–1)
-normalized = (raw_score - raw_score.min()) / (raw_score.max() - raw_score.min())
+raw_score = (
+    fat_penalty + sys_penalty + dia_penalty + low_fitness_penalty
+    - grip_score - situp_score - flex_score - jump_score
+)
 
-# Scale to 16.2–100
-data["bio_age"] = 16.2 + normalized * (100 - 16.2)
+base_age = 30
+data["bio_age"] = base_age + raw_score
 
-# Safety clamp
 data["bio_age"] = data["bio_age"].clip(16.2, 100)
 
 print("\nSample Biological Age Values:")
@@ -136,7 +146,7 @@ print("\nEDA graphs saved in reports/plots folder.")
 
 X = data[
     [
-        "age",
+    
         "gender",
         "body fat_%",
         "diastolic",
