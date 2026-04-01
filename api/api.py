@@ -244,9 +244,9 @@ def predict_bio_age(
 
         # 🔥 PRIORITY: fat > fitness > bp > model
         model_weight = 0.25
-        fat_weight = 4.5
+        fat_weight = 3.8
         bp_weight = 0.3
-        fitness_weight = 1.5
+        fitness_weight = 2.2
 
         # 🔥 EXTRA BOOST FOR HIGH FAT (fix case 2B)
         fat_boost = fat_penalty * 0.5
