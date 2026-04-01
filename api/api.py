@@ -231,45 +231,14 @@ def predict_bio_age(
 
         prediction = bio_age_model.predict(features)[0]
 
-        # 🔥 ADJUSTMENT LAYER (THIS IS WHAT YOU NEED)
+# 🔥 smooth prediction (important)
+        bio_age = (prediction * 0.9) + (0.1 * 25)
 
-        # 🔥 FIXED PENALTIES (no sudden drops)
-
-        # 🔥 FIXED PENALTIES (no sudden drops)
-        fat_penalty = max(0, data.body_fat - 15) * 1.0
-        bp_penalty = max(0, data.systolic - 120) * 0.8
-
-        # 🔥 FITNESS SCORE
-        fitness_bonus = (
-        (data.grip_force * 0.025) +
-        (data.flexibility * 0.025) +
-        (data.situps * 0.025) +
-        (data.broad_jump * 0.025)
-    )
-
-        # 🔥 PRIORITY: fat > fitness > bp > model
-        model_weight = 0.6
-        fitness_weight = 0.2
-        fat_weight = 0.16
-        bp_weight = 0.04
-
-        # 🔥 EXTRA BOOST FOR HIGH FAT (fix case 2B)
-        fat_boost = fat_penalty * 0.5
-
-        # 🔥 FINAL BIO AGE CALCULATION
-        adjusted_age = (
-            (prediction * model_weight)
-            + (fat_penalty * fat_weight)
-            + (bp_penalty * bp_weight)
-            - (fitness_bonus * fitness_weight)
-            + fat_boost
-        )
-
-        # 🔥 CLAMP RANGE
-        adjusted_age = max(14, min(80, adjusted_age))
+        # clamp range
+        bio_age = max(14, min(80, bio_age))
 
         return {
-            "biological_age": float(adjusted_age),
+            "biological_age": float(bio_age),
             "status": "success"
         }
 
