@@ -248,7 +248,7 @@ def predict_bio_age(
     )
 
         # 🔥 PRIORITY: fat > fitness > bp > model
-        model_weight = 0.25
+        model_weight = 0.4
         fat_weight = 2.9
         bp_weight = 0.3
         fitness_weight = 3.3
