@@ -44,14 +44,17 @@ try:
             "calories": "Calories"
         })
 
-       
+        new_data["Duration"] = new_data["Duration"]
+        new_data["Heart_Rate"] = new_data["Heart_Rate"]
+        new_data["Body_Temp"] = new_data["Body_Temp"]
 
         new_data = new_data[["Age","Height","Weight","Duration","Heart_Rate","Body_Temp","Calories"]]
-        print("Final Dataset Shape:", data.shape)
+
         data = pd.concat([data, new_data], ignore_index=True)
 
         print("\nNew database data added for training ✔")
-        
+        print("Final Dataset Shape:", data.shape)
+
 except Exception as e:
     print("\nDatabase not found or error:", e)
 

@@ -231,11 +231,27 @@ def predict_bio_age(
 
         prediction = bio_age_model.predict(features)[0]
 
-# 🔥 smooth prediction (important)
-        bio_age = (prediction * 0.9) + (0.1 * 25)
+        # ---------------- BASE SMOOTHING ----------------
+        bio_age = (prediction * 0.85) + (0.15 * 30)
 
-        # clamp range
-        bio_age = max(14, min(80, bio_age))
+        # ---------------- FAT CORRECTION ----------------
+        fat_correction = (data.body_fat - 20) * 0.25
+        bio_age += fat_correction
+
+        # ---------------- FITNESS CORRECTION ----------------
+        fitness_score = (data.grip_force + data.situps + data.broad_jump) / 3
+        fitness_correction = (fitness_score - 100) * 0.08
+        bio_age -= fitness_correction
+
+        # ---------------- FLEXIBILITY CORRECTION ----------------
+        flex_correction = (data.flexibility - 20) * 0.03
+        bio_age -= flex_correction
+
+        # ---------------- CLAMP RANGE ----------------
+        bio_age = max(18, min(65, bio_age))
+
+        # ---------------- ROUND ----------------
+        bio_age = round(bio_age, 1)
 
         return {
             "biological_age": float(bio_age),
