@@ -240,13 +240,18 @@ def predict_bio_age(
         bp_penalty = max(0, data.systolic - 120) * 0.8
 
         # 🔥 FITNESS SCORE
-        fitness_bonus = (data.grip_force * 0.05) + (data.situps * 0.03)
+        fitness_bonus = (
+        (data.grip_force * 0.025) +
+        (data.flexibility * 0.025) +
+        (data.situps * 0.025) +
+        (data.broad_jump * 0.025)
+    )
 
         # 🔥 PRIORITY: fat > fitness > bp > model
         model_weight = 0.25
-        fat_weight = 3.4
+        fat_weight = 2.9
         bp_weight = 0.3
-        fitness_weight = 2.6
+        fitness_weight = 3.3
 
         # 🔥 EXTRA BOOST FOR HIGH FAT (fix case 2B)
         fat_boost = fat_penalty * 0.5
