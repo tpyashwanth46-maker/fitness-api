@@ -207,7 +207,7 @@ def predict_calories(
 @limiter.limit("10/minute")
 @app.post("/predict_bio_age")
 def predict_bio_age(
-    request: Request,   # ✅ FIXED (added only this)
+    request: Request,
     data: BioAgeInput,
     x_api_key: str = Header(None),
     user=Depends(get_current_user)
@@ -229,10 +229,22 @@ def predict_bio_age(
             data.broad_jump
         ]).reshape(1, -1)
 
-        prediction = bio_age_model.predict(features)
+        prediction = bio_age_model.predict(features)[0]
+
+        # 🔥 ADJUSTMENT LAYER (THIS IS WHAT YOU NEED)
+
+        fat_penalty = abs(data.body_fat - 15) * 0.8
+        bp_penalty = abs(data.systolic - 120) * 0.6
+
+        fitness_bonus = (data.grip_force * 0.05) + (data.situps * 0.03)
+
+        adjusted_age = prediction + fat_penalty + bp_penalty - fitness_bonus
+
+        # clamp final value
+        adjusted_age = max(16, min(80, adjusted_age))
 
         return {
-            "biological_age": float(prediction[0]),
+            "biological_age": float(adjusted_age),
             "status": "success"
         }
 
