@@ -244,9 +244,9 @@ def predict_bio_age(
 
         # 🔥 PRIORITY: fat > fitness > bp > model
         model_weight = 0.25
-        fat_weight = 3.8
+        fat_weight = 3.4
         bp_weight = 0.3
-        fitness_weight = 2.2
+        fitness_weight = 2.6
 
         # 🔥 EXTRA BOOST FOR HIGH FAT (fix case 2B)
         fat_boost = fat_penalty * 0.5
@@ -261,7 +261,7 @@ def predict_bio_age(
         )
 
         # 🔥 CLAMP RANGE
-        adjusted_age = max(16, min(80, adjusted_age))
+        adjusted_age = max(14, min(80, adjusted_age))
 
         return {
             "biological_age": float(adjusted_age),
