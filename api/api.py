@@ -233,14 +233,34 @@ def predict_bio_age(
 
         # 🔥 ADJUSTMENT LAYER (THIS IS WHAT YOU NEED)
 
-        fat_penalty = abs(data.body_fat - 15) * 0.8
-        bp_penalty = abs(data.systolic - 120) * 0.6
+        # 🔥 FIXED PENALTIES (no sudden drops)
 
+        # 🔥 FIXED PENALTIES (no sudden drops)
+        fat_penalty = max(0, data.body_fat - 15) * 1.0
+        bp_penalty = max(0, data.systolic - 120) * 0.8
+
+        # 🔥 FITNESS SCORE
         fitness_bonus = (data.grip_force * 0.05) + (data.situps * 0.03)
 
-        adjusted_age = prediction + fat_penalty + bp_penalty - fitness_bonus
+        # 🔥 PRIORITY: fat > fitness > bp > model
+        model_weight = 0.25
+        fat_weight = 4.5
+        bp_weight = 0.3
+        fitness_weight = 1.5
 
-        # clamp final value
+        # 🔥 EXTRA BOOST FOR HIGH FAT (fix case 2B)
+        fat_boost = fat_penalty * 0.5
+
+        # 🔥 FINAL BIO AGE CALCULATION
+        adjusted_age = (
+            (prediction * model_weight)
+            + (fat_penalty * fat_weight)
+            + (bp_penalty * bp_weight)
+            - (fitness_bonus * fitness_weight)
+            + fat_boost
+        )
+
+        # 🔥 CLAMP RANGE
         adjusted_age = max(16, min(80, adjusted_age))
 
         return {
