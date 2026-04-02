@@ -258,9 +258,9 @@ def predict_bio_age(
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.3
 
-        # 🔁 FLEXIBILITY (APPLY AFTER)
-        # Neutralize model bias + apply correct direction
-        flex_correction = (data.flexibility - 25) * 0.08
+
+        # FLEXIBILITY (final fix)
+        flex_correction = (data.flexibility - 25) * 0.15
         bio_age -= flex_correction
 
         # CLAMP
