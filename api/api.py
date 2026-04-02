@@ -251,7 +251,7 @@ def predict_bio_age(
         bio_age -= fitness_correction
 
         # FLEXIBILITY
-        flex_correction = data.flexibility * 0.06
+        flex_correction = data.flexibility * 0.1
         bio_age -= flex_correction
 
         # PREVENT TOO LOW
