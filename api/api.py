@@ -228,6 +228,7 @@ def predict_bio_age(
         data.situps,
         data.broad_jump
     ]).reshape(1, -1)
+        prediction = bio_age_model.predict(features)[0] 
 
         # 🔥 remove model's flexibility bias
         prediction = prediction - (data.flexibility * 0.08)
