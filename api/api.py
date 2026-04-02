@@ -219,15 +219,14 @@ def predict_bio_age(
 
     try:
         features = np.array([
-            data.gender,
-            data.body_fat,
-            data.diastolic,
-            data.systolic,
-            data.grip_force,
-            data.flexibility,
-            data.situps,
-            data.broad_jump
-        ]).reshape(1, -1)
+        data.gender,
+        data.body_fat,
+        data.diastolic,
+        data.systolic,
+        data.grip_force,
+        data.situps,
+        data.broad_jump
+    ]).reshape(1, -1)
 
         prediction = bio_age_model.predict(features)[0]
 
@@ -261,7 +260,7 @@ def predict_bio_age(
 
         # FLEXIBILITY (final fix)
         # FLEXIBILITY (aggressive override)
-        flex_correction = data.flexibility * 0.18
+        flex_correction = data.flexibility * 0.1
         bio_age -= flex_correction
 
         # CLAMP
