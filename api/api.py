@@ -235,7 +235,7 @@ def predict_bio_age(
         bio_age = (prediction * 0.85) + (0.15 * 30)
 
         # FAT
-        fat_correction = (data.body_fat - 20) * 1.5
+        fat_correction = (data.body_fat - 20) * 1.8
         bio_age += fat_correction
 
         # BP (new)
@@ -251,7 +251,7 @@ def predict_bio_age(
         bio_age -= fitness_correction
 
         # FLEXIBILITY (fixed)
-        flex_correction = data.flexibility * 0.04
+        flex_correction = data.flexibility * 0.06
         bio_age -= flex_correction
 
         # CLAMP
