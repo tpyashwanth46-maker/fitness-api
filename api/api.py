@@ -260,7 +260,7 @@ def predict_bio_age(
 
 
         # FLEXIBILITY (final fix)
-        flex_correction = (data.flexibility - 25) * 0.15
+        flex_correction = data.flexibility * 0.05
         bio_age -= flex_correction
 
         # CLAMP
