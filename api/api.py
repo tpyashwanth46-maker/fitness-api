@@ -244,7 +244,7 @@ def predict_bio_age(
 
         # FITNESS
         fitness_correction = (
-            
+
             data.situps * 0.018 +
             data.broad_jump * 0.018
         )
@@ -259,7 +259,8 @@ def predict_bio_age(
             bio_age += (25 - bio_age) * 0.3
 
         # 🔁 FLEXIBILITY (APPLY AFTER)
-        flex_correction = data.flexibility * 0.04
+        # Neutralize model bias + apply correct direction
+        flex_correction = (data.flexibility - 25) * 0.08
         bio_age -= flex_correction
 
         # CLAMP
