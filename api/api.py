@@ -228,7 +228,7 @@ def predict_bio_age(
         data.situps,
         data.broad_jump
     ]).reshape(1, -1)
-        prediction = bio_age_model.predict(features)[0] 
+        prediction = bio_age_model.predict(features)[0]
 
         # 🔥 remove model's flexibility bias
         prediction = prediction - (data.flexibility * 0.08)
@@ -256,15 +256,12 @@ def predict_bio_age(
         grip_correction = data.grip_force * 0.02
         bio_age -= grip_correction
 
-        # 🔁 SOFT LOW-END CONTROL (MOVE UP)
+        # 🔁 SOFT LOW-END CONTROL
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.3
 
-
-        # FLEXIBILITY (final fix)
-        # FLEXIBILITY (aggressive override)
-        flex_correction = data.flexibility * 0.1
-        bio_age -= flex_correction
+        # 🔥 FLEXIBILITY (FINAL OVERRIDE — STRONG & LAST)
+        bio_age -= data.flexibility * 0.2
 
         # CLAMP
         bio_age = max(18, min(65, bio_age))
