@@ -234,15 +234,15 @@ def predict_bio_age(
         # ---------------- BASE SMOOTHING ----------------
         bio_age = (prediction * 0.85) + (0.15 * 30)
 
-# FAT (slightly stronger)
+        # FAT
         fat_correction = (data.body_fat - 20) * 1.6
         bio_age += fat_correction
 
-        # BP (slightly reduced)
+        # BP
         bp_score = (data.systolic - 120) * 0.045 + (data.diastolic - 80) * 0.028
         bio_age += bp_score
 
-        # FITNESS (without grip)
+        # FITNESS
         fitness_correction = (
             
             data.situps * 0.018 +
@@ -250,19 +250,19 @@ def predict_bio_age(
         )
         bio_age -= fitness_correction
 
-        # GRIP (separate, correct direction)
+        # GRIP
         grip_correction = data.grip_force * 0.02
         bio_age -= grip_correction
 
-        # FLEXIBILITY (fixed scale + correct direction)
-        flex_correction = data.flexibility * 0.04
-        bio_age -= flex_correction
-
-        # SOFT LOW-END CONTROL
+        # 🔁 SOFT LOW-END CONTROL (MOVE UP)
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.3
 
-        # CLAMP (UNCHANGED)
+        # 🔁 FLEXIBILITY (APPLY AFTER)
+        flex_correction = data.flexibility * 0.04
+        bio_age -= flex_correction
+
+        # CLAMP
         bio_age = max(18, min(65, bio_age))
 
         # ROUND
