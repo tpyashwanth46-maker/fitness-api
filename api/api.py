@@ -235,20 +235,20 @@ def predict_bio_age(
         bio_age = (prediction * 0.85) + (0.15 * 30)
 
         # ---------------- FAT CORRECTION ----------------
-        fat_correction = (data.body_fat - 20) * 0.4
+        fat_correction = (data.body_fat - 20) * 0.9
         bio_age += fat_correction
 
        # ---------------- FITNESS CORRECTION (BALANCED) ----------------
         fitness_correction = (
-            data.grip_force * 0.04 +     # strength (important)
-            data.situps * 0.02 +         # endurance (reduced weight)
-            data.broad_jump * 0.015      # power (controlled)
+        data.grip_force * 0.02 +     # 🔽 reduced grip importance
+        data.situps * 0.025 +        # slight increase
+        data.broad_jump * 0.015
         )
         bio_age -= fitness_correction
 
         # ---------------- FLEXIBILITY CORRECTION ----------------
-        flex_correction = data.flexibility * 0.05
-        bio_age -= flex_correction
+        flex_correction = data.flexibility * 0.04
+        bio_age += flex_correction   # 🔁 now higher flex → higher age
 
         # ---------------- CLAMP RANGE ----------------
         bio_age = max(18, min(65, bio_age))
