@@ -245,12 +245,17 @@ def predict_bio_age(
         bio_age += bp_score
 
         # FITNESS
+        # 🔥 REDISTRIBUTED FITNESS (FINAL)
         fitness_score = (
-            data.situps * 0.01 +
-            data.broad_jump * 0.01
+            data.situps * 0.006 +      # ↓ reduced a lot
+            data.broad_jump * 0.013    # ↑ slightly increased
         )
         fitness_correction = min(fitness_score, 2.5)
         bio_age -= fitness_correction
+
+        # 🔥 GRIP (slightly stronger)
+        grip_correction = min(data.grip_force * 0.014, 2.5)
+        bio_age -= grip_correction
 
         # GRIP
         grip_correction = min(data.grip_force * 0.012, 2)
