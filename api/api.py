@@ -288,7 +288,7 @@ def predict_bio_age(
         # 🔥 HIGH-END COMPRESSION (VERY IMPORTANT)
         # 🔥 FINAL HIGH-END COMPRESSION
         if bio_age > 45:
-            bio_age = 45 + (bio_age - 45) * 0.6# compress growth
+            bio_age = 45 + (bio_age - 45) * 0.45# compress growth
 
         # 🔥 MID-RANGE BOOST (small correction)
         if 30 < bio_age < 40:
