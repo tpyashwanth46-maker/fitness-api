@@ -261,7 +261,7 @@ def predict_bio_age(
             bio_age += (25 - bio_age) * 0.3
 
         # 🔥 FLEXIBILITY (IMPROVED — NON-LINEAR STRONG)
-        flex_correction = (data.flexibility ** 1.1) * 0.15
+        flex_correction = (data.flexibility ** 1.15) * 0.16
         bio_age -= flex_correction
 
         # CLAMP
