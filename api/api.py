@@ -4,6 +4,7 @@ import os
 import joblib
 import numpy as np
 import sqlite3
+import math
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -233,8 +234,8 @@ def predict_bio_age(
        # 🔥 remove model's flexibility bias
         prediction = prediction - (data.flexibility * 0.08)
 
-        # ---------------- BASE SMOOTHING ----------------
-        bio_age = (prediction * 0.98) + (0.02 * 42)
+        # 🔥 BASE LIFT (IMPORTANT)
+        bio_age = (prediction * 1.02) + 2.5   # 🔥 increased
 
         # FAT
         fat_correction = (data.body_fat - 20) * 1.7
@@ -244,24 +245,19 @@ def predict_bio_age(
         bp_score = (data.systolic - 120) * 0.045 + (data.diastolic - 80) * 0.03
         bio_age += bp_score
 
-        # FITNESS
-        # 🔥 REDISTRIBUTED FITNESS (FINAL)
-        fitness_score = (
-            data.situps * 0.006 +      # ↓ reduced a lot
-            data.broad_jump * 0.013    # ↑ slightly increased
-        )
+        # 🔥 SATURATED FITNESS
+        situp_effect = math.log1p(data.situps) * 0.9
+        jump_effect = data.broad_jump * 0.013
+
+        fitness_score = situp_effect + jump_effect
         fitness_correction = min(fitness_score, 2.5)
         bio_age -= fitness_correction
 
-        # 🔥 GRIP (slightly stronger)
+        # GRIP (keep same)
         grip_correction = min(data.grip_force * 0.014, 2.5)
         bio_age -= grip_correction
 
-        # GRIP
-        grip_correction = min(data.grip_force * 0.012, 2)
-        bio_age -= grip_correction
-
-        # 🔥 MID-RANGE BOOST
+        # 🔥 MID RANGE BOOST (keep)
         if 30 < bio_age < 50:
             bio_age += 3
 
@@ -269,8 +265,7 @@ def predict_bio_age(
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.6
 
-       
-# 🔥 LOW PERFORMANCE PENALTY (TUNED FINAL)
+        # 🔥 LOW PERFORMANCE PENALTY (keep)
         low_penalty = 0
 
         if data.situps < 45:
@@ -283,11 +278,11 @@ def predict_bio_age(
             low_penalty += (28 - data.flexibility) * 0.08
 
         if data.grip_force < 50:
-            low_penalty += (50 - data.grip_force) * 0.05   # 🔥 NEW
+            low_penalty += (50 - data.grip_force) * 0.05
 
         bio_age += low_penalty
 
-        # FLEXIBILITY (keep as is)
+        # FLEXIBILITY (keep perfect)
         flex_correction = (data.flexibility ** 1.15) * 0.16
         bio_age -= flex_correction
 
@@ -296,7 +291,7 @@ def predict_bio_age(
 
         # ROUND
         bio_age = round(bio_age, 1)
-
+        
         return {
         
             "biological_age": float(bio_age),
