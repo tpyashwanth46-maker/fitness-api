@@ -286,8 +286,9 @@ def predict_bio_age(
         flex_correction = (data.flexibility ** 1.15) * 0.16
         bio_age -= flex_correction
         # 🔥 HIGH-END COMPRESSION (VERY IMPORTANT)
-        if bio_age > 50:
-            bio_age = 50 + (bio_age - 50) * 0.7   # compress growth
+        # 🔥 FINAL HIGH-END COMPRESSION
+        if bio_age > 45:
+            bio_age = 45 + (bio_age - 45) * 0.55# compress growth
 
         # 🔥 MID-RANGE BOOST (small correction)
         if 30 < bio_age < 40:
