@@ -234,34 +234,34 @@ def predict_bio_age(
         prediction = prediction - (data.flexibility * 0.08)
 
         # ---------------- BASE SMOOTHING ----------------
-        bio_age = (prediction * 0.85) + (0.15 * 30)
+        bio_age = (prediction * 0.9) + (0.1 * 35)   # 🔥 slightly raised base
 
-        # FAT (slightly stronger)
-        fat_correction = (data.body_fat - 20) * 1.6
+        # FAT (stronger)
+        fat_correction = (data.body_fat - 20) * 1.7
         bio_age += fat_correction
 
-        # BP (balanced)
-        bp_score = (data.systolic - 120) * 0.04 + (data.diastolic - 80) * 0.025
+        # BP (slightly stronger)
+        bp_score = (data.systolic - 120) * 0.045 + (data.diastolic - 80) * 0.03
         bio_age += bp_score
 
-        # FITNESS (CAPPED — VERY IMPORTANT)
+        # FITNESS (REDUCED + CAPPED)
         fitness_score = (
             
-            data.situps * 0.015 +
-            data.broad_jump * 0.015
+            data.situps * 0.012 +      # 🔥 reduced
+            data.broad_jump * 0.012
         )
-        fitness_correction = min(fitness_score, 4)   # 🔥 cap added
+        fitness_correction = min(fitness_score, 3)   # 🔥 tighter cap
         bio_age -= fitness_correction
 
-        # GRIP (CAPPED)
-        grip_correction = min(data.grip_force * 0.018, 3)   # 🔥 cap added
+        # GRIP (REDUCED + CAPPED)
+        grip_correction = min(data.grip_force * 0.015, 2)   # 🔥 reduced
         bio_age -= grip_correction
 
-        # 🔁 STRONGER LOW-END CONTROL
+        # 🔁 LOW-END CONTROL (STRONGER)
         if bio_age < 25:
-            bio_age += (25 - bio_age) * 0.6
+            bio_age += (25 - bio_age) * 0.7
 
-        # 🔥 FLEXIBILITY (keep as is — already perfect)
+        # FLEXIBILITY (KEEP YOUR PERFECT VERSION)
         flex_correction = (data.flexibility ** 1.15) * 0.16
         bio_age -= flex_correction
 
