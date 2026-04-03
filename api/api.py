@@ -246,7 +246,7 @@ def predict_bio_age(
 
         # FITNESS
         fitness_correction = (
-
+            
             data.situps * 0.018 +
             data.broad_jump * 0.018
         )
@@ -260,8 +260,9 @@ def predict_bio_age(
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.3
 
-        # 🔥 FLEXIBILITY (FINAL OVERRIDE — STRONG & LAST)
-        bio_age -= data.flexibility * 0.2
+        # 🔥 FLEXIBILITY (IMPROVED — NON-LINEAR STRONG)
+        flex_correction = (data.flexibility ** 1.1) * 0.15
+        bio_age -= flex_correction
 
         # CLAMP
         bio_age = max(18, min(65, bio_age))
@@ -270,6 +271,7 @@ def predict_bio_age(
         bio_age = round(bio_age, 1)
 
         return {
+        
             "biological_age": float(bio_age),
             "status": "success"
         }
