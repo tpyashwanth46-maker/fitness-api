@@ -264,17 +264,21 @@ def predict_bio_age(
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.6
 
-        # 🔥 LOW PERFORMANCE PENALTY (NEW FIX)
+       
+# 🔥 LOW PERFORMANCE PENALTY (TUNED FINAL)
         low_penalty = 0
 
-        if data.situps < 40:
-            low_penalty += (40 - data.situps) * 0.08
+        if data.situps < 45:
+            low_penalty += (45 - data.situps) * 0.09
 
-        if data.broad_jump < 120:
-            low_penalty += (120 - data.broad_jump) * 0.05
+        if data.broad_jump < 130:
+            low_penalty += (130 - data.broad_jump) * 0.06
 
-        if data.flexibility < 25:
-            low_penalty += (25 - data.flexibility) * 0.07
+        if data.flexibility < 28:
+            low_penalty += (28 - data.flexibility) * 0.08
+
+        if data.grip_force < 50:
+            low_penalty += (50 - data.grip_force) * 0.05   # 🔥 NEW
 
         bio_age += low_penalty
 
