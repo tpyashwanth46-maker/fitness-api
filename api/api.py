@@ -230,11 +230,11 @@ def predict_bio_age(
     ]).reshape(1, -1)
         prediction = bio_age_model.predict(features)[0]
 
-        # 🔥 remove model's flexibility bias
+       # 🔥 remove model's flexibility bias
         prediction = prediction - (data.flexibility * 0.08)
 
         # ---------------- BASE SMOOTHING ----------------
-        bio_age = (prediction * 0.98) + (0.02 * 42)   # 🔥 slightly higher base
+        bio_age = (prediction * 0.98) + (0.02 * 42)
 
         # FAT
         fat_correction = (data.body_fat - 20) * 1.7
@@ -256,7 +256,7 @@ def predict_bio_age(
         grip_correction = min(data.grip_force * 0.012, 2)
         bio_age -= grip_correction
 
-        # 🔥 MID-RANGE BOOST (VERY IMPORTANT)
+        # 🔥 MID-RANGE BOOST
         if 30 < bio_age < 50:
             bio_age += 3
 
@@ -264,7 +264,21 @@ def predict_bio_age(
         if bio_age < 25:
             bio_age += (25 - bio_age) * 0.6
 
-        # FLEXIBILITY
+        # 🔥 LOW PERFORMANCE PENALTY (NEW FIX)
+        low_penalty = 0
+
+        if data.situps < 40:
+            low_penalty += (40 - data.situps) * 0.08
+
+        if data.broad_jump < 120:
+            low_penalty += (120 - data.broad_jump) * 0.05
+
+        if data.flexibility < 25:
+            low_penalty += (25 - data.flexibility) * 0.07
+
+        bio_age += low_penalty
+
+        # FLEXIBILITY (keep as is)
         flex_correction = (data.flexibility ** 1.15) * 0.16
         bio_age -= flex_correction
 
