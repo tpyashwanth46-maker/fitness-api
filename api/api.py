@@ -285,13 +285,20 @@ def predict_bio_age(
         # FLEXIBILITY (keep perfect)
         flex_correction = (data.flexibility ** 1.15) * 0.16
         bio_age -= flex_correction
+        # 🔥 HIGH-END COMPRESSION (VERY IMPORTANT)
+        if bio_age > 50:
+            bio_age = 50 + (bio_age - 50) * 0.7   # compress growth
+
+        # 🔥 MID-RANGE BOOST (small correction)
+        if 30 < bio_age < 40:
+            bio_age += 1.5
 
         # CLAMP
         bio_age = max(18, min(65, bio_age))
 
         # ROUND
         bio_age = round(bio_age, 1)
-        
+
         return {
         
             "biological_age": float(bio_age),
