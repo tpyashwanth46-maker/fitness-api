@@ -116,7 +116,7 @@ except Exception as e:
 
 @app.post("/register")
 @limiter.limit("3/minute")
-def register(username: str, password: str):
+def register(request: Request, username: str, password: str):
     import sqlite3
 
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
@@ -145,7 +145,7 @@ def register(username: str, password: str):
 
 @app.post("/login")
 @limiter.limit("5/minute")
-def login(username: str, password: str):
+def login(request: Request, username: str, password: str):
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
 
