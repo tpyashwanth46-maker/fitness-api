@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
+from pydantic import BaseModel, Field
 import sys
 import os
 import joblib
@@ -13,6 +14,18 @@ from fastapi.responses import JSONResponse
 
 # ---------------- JWT IMPORTS ----------------
 from auth.jwt_handler import create_access_token, verify_token
+def user_key_func(request: Request):
+    auth = request.headers.get("Authorization")
+
+    if auth and "Bearer " in auth:
+        try:
+            token = auth.split(" ")[1]
+            payload = verify_token(token)
+            return payload.get("sub")
+        except:
+            pass
+
+    return get_remote_address(request)
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,22 +37,23 @@ from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
 class CaloriesInput(BaseModel):
-    age: int
-    height: float
-    weight: float
-    duration: float
-    heart_rate: float
-    body_temp: float
+    age: int = Field(..., ge=10, le=100)
+    height: float = Field(..., gt=50, lt=250)
+    weight: float = Field(..., gt=20, lt=300)
+    duration: float = Field(..., gt=1, lt=300)
+    heart_rate: float = Field(..., gt=40, lt=220)
+    body_temp: float = Field(..., gt=30, lt=45)
+    
 
 class BioAgeInput(BaseModel):
-    gender: int
-    body_fat: float
-    diastolic: float
-    systolic: float
-    grip_force: float
-    flexibility: float
-    situps: int
-    broad_jump: float
+    gender: int = Field(..., ge=0, le=1)
+    body_fat: float = Field(..., ge=1, le=60)
+    diastolic: float = Field(..., ge=40, le=120)
+    systolic: float = Field(..., ge=80, le=200)
+    grip_force: float = Field(..., ge=1, le=100)
+    flexibility: float = Field(..., ge=0, le=100)
+    situps: int = Field(..., ge=0, le=200)
+    broad_jump: float = Field(..., ge=0, le=300)
 
 
 app = FastAPI()
@@ -48,8 +62,10 @@ app = FastAPI()
 from database import create_table
 create_table()
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=user_key_func)
 app.state.limiter = limiter
+from slowapi.middleware import SlowAPIMiddleware
+app.add_middleware(SlowAPIMiddleware)
 
 @app.exception_handler(RateLimitExceeded)
 def rate_limit_handler(request, exc):
@@ -62,18 +78,16 @@ def rate_limit_handler(request, exc):
 security = HTTPBearer()
 
 def get_current_user(token=Depends(security)):
-    payload = verify_token(token.credentials)
-    if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return payload
+    try:
+        payload = verify_token(token.credentials)
+        
+        if payload is None:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        
+        return payload
 
-# ---------------- API KEY ----------------
-def verify_api_key(x_api_key: str = Header(None)):
-    current_key = os.getenv("API_KEY")
-
-    if x_api_key != current_key:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
 # ---------------- PATH FIX ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
@@ -101,6 +115,7 @@ except Exception as e:
 # ---------------- AUTH ROUTES ----------------
 
 @app.post("/register")
+@limiter.limit("3/minute")
 def register(username: str, password: str):
     import sqlite3
 
@@ -129,6 +144,7 @@ def register(username: str, password: str):
         conn.close()
 
 @app.post("/login")
+@limiter.limit("5/minute")
 def login(username: str, password: str):
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
@@ -166,16 +182,18 @@ def health():
 
 
 # ---------------- CALORIES API ----------------
-@limiter.limit("10/minute")
-@app.post("/predict_calories")
 
+@app.post("/predict_calories")
+@limiter.limit("10/minute")  
+@limiter.limit("50/minute", key_func=user_key_func)
+@limiter.limit("500/day", key_func=user_key_func)
 def predict_calories(
     request: Request,
     data: CaloriesInput,
-    x_api_key: str = Header(None),
+
     user=Depends(get_current_user)
 ):
-    verify_api_key(x_api_key)
+    
 
     if calories_model is None:
         raise HTTPException(status_code=500, detail="Calories model not loaded")
@@ -205,15 +223,18 @@ def predict_calories(
 
 
 # ---------------- BIO AGE API ----------------
-@limiter.limit("10/minute")
+
 @app.post("/predict_bio_age")
+@limiter.limit("10/minute")  
+@limiter.limit("50/minute", key_func=user_key_func)
+@limiter.limit("500/day", key_func=user_key_func)
 def predict_bio_age(
     request: Request,
     data: BioAgeInput,
-    x_api_key: str = Header(None),
+
     user=Depends(get_current_user)
 ):
-    verify_api_key(x_api_key)
+    
 
     if bio_age_model is None:
         raise HTTPException(status_code=500, detail="Bio age model not loaded")
