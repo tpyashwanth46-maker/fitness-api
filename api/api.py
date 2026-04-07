@@ -58,7 +58,15 @@ class BioAgeInput(BaseModel):
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
+from fastapi.responses import RedirectResponse
 
+@app.middleware("http")
+async def enforce_https(request: Request, call_next):
+    if request.url.scheme == "http":
+        url = request.url.replace(scheme="https")
+        return RedirectResponse(url)
+    return await call_next(request)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],   # allow all for now
