@@ -6,6 +6,15 @@ import joblib
 import numpy as np
 import sqlite3
 import math
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="app.log"   # saves logs in file
+)
+
+logger = logging.getLogger(__name__)
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -57,6 +66,13 @@ class BioAgeInput(BaseModel):
 
 
 app = FastAPI()
+logger.info("API started")
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request: {request.method} {request.url}")
+    response = await call_next(request)
+    logger.info(f"Response: {response.status_code}")
+    return response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -86,6 +102,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 @app.exception_handler(RateLimitExceeded)
 def rate_limit_handler(request, exc):
+    logger.warning("Rate limit exceeded")
     return JSONResponse(
         status_code=429,
         content={"detail": "Too many requests. Please try again later."}
@@ -104,6 +121,7 @@ def get_current_user(token=Depends(security)):
         return payload
 
     except Exception:
+        logger.error("Invalid token")
         raise HTTPException(status_code=401, detail="Invalid token")
 # ---------------- PATH FIX ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -122,9 +140,11 @@ try:
 
     calories_model = joblib.load(calories_model_path)
     bio_age_model = joblib.load(bio_age_model_path)
+    logger.info("Models loaded successfully")
 
 except Exception as e:
-    print("Model loading error:", e)
+    
+    logger.error(f"Model loading error: {e}")
     calories_model = None
     bio_age_model = None
 
@@ -134,6 +154,7 @@ except Exception as e:
 @app.post("/register")
 @limiter.limit("3/minute")
 def register(request: Request, username: str, password: str):
+    logger.info(f"Register attempt: {username}")
     import sqlite3
 
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
@@ -155,6 +176,7 @@ def register(request: Request, username: str, password: str):
 
     except Exception as e:
         print("REGISTER ERROR:", e)
+        logger.error(f"Register error: {e}")
         return {"error": "Registration failed"}
 
     finally:
@@ -163,6 +185,7 @@ def register(request: Request, username: str, password: str):
 @app.post("/login")
 @limiter.limit("5/minute")
 def login(request: Request, username: str, password: str):
+    logger.info(f"Login attempt: {username}")
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
 
@@ -172,13 +195,15 @@ def login(request: Request, username: str, password: str):
     conn.close()
 
     if user is None:
+        logger.warning("User not found")
         raise HTTPException(status_code=404, detail="User not found")
 
     if not verify_password(password, user[2]):
+        logger.warning("Wrong password")
         return {"error": "Invalid password"}
 
     token = create_access_token({"sub": username})
-
+    logger.info(f"Login success: {username}")
     return {"access_token": token}
 
 
@@ -210,7 +235,7 @@ def predict_calories(
 
     user=Depends(get_current_user)
 ):
-    
+    logger.info(f"Calories API called by {user}")
 
     if calories_model is None:
         raise HTTPException(status_code=500, detail="Calories model not loaded")
@@ -236,6 +261,7 @@ def predict_calories(
         }
 
     except Exception as e:
+        logger.error(f"Calories prediction error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -252,7 +278,7 @@ def predict_bio_age(
     user=Depends(get_current_user)
 ):
     
-
+    logger.info(f"Bio age API called by {user}")
     if bio_age_model is None:
         raise HTTPException(status_code=500, detail="Bio age model not loaded")
 
@@ -345,4 +371,5 @@ def predict_bio_age(
         }
 
     except Exception as e:
+        logger.error(f"Bio age prediction error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
