@@ -79,9 +79,15 @@ from fastapi.responses import RedirectResponse
 
 @app.middleware("http")
 async def enforce_https(request: Request, call_next):
+    # ✅ allow localhost
+    if request.url.hostname in ["127.0.0.1", "localhost"]:
+        return await call_next(request)
+
+    # 🔒 enforce HTTPS only in production
     if request.url.scheme == "http":
         url = request.url.replace(scheme="https")
         return RedirectResponse(url)
+
     return await call_next(request)
 app.add_middleware(
     CORSMiddleware,
@@ -143,7 +149,7 @@ try:
     logger.info("Models loaded successfully")
 
 except Exception as e:
-    
+
     logger.error(f"Model loading error: {e}")
     calories_model = None
     bio_age_model = None
@@ -175,7 +181,7 @@ def register(request: Request, username: str, password: str):
         return {"error": "Username already exists"}
 
     except Exception as e:
-        print("REGISTER ERROR:", e)
+
         logger.error(f"Register error: {e}")
         return {"error": "Registration failed"}
 
