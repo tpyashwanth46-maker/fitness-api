@@ -160,11 +160,16 @@ except Exception as e:
 
 # ---------------- AUTH ROUTES ----------------
 
+import random
+import time
+
 @app.post("/register")
 @limiter.limit("3/minute")
-def register(request: Request, username: str, password: str):
+@limiter.limit("10/hour")
+@limiter.limit("20/day")
+def register(request: Request, username: str, password: str, email: str):
     logger.info(f"Register attempt: {username}")
-    import sqlite3
+
 
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
@@ -172,13 +177,20 @@ def register(request: Request, username: str, password: str):
     try:
         hashed_pw = hash_password(password)
 
+        # 🔥 generate OTP
+        otp = str(random.randint(100000, 999999))
+        otp_expiry = time.time() + 300  # 5 minutes
+
         cursor.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (username, hashed_pw)
+            "INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (?, ?, ?, ?, ?, ?)",
+            (username, hashed_pw, email, 0, otp, otp_expiry)
         )
         conn.commit()
 
-        return {"message": "User created successfully"}
+        # 🔥 for testing (check app.log)
+        logger.info(f"OTP for {username}: {otp}")
+
+        return {"message": "User created. Please verify OTP."}
 
     except sqlite3.IntegrityError:
         return {"error": "Username already exists"}
@@ -190,9 +202,53 @@ def register(request: Request, username: str, password: str):
 
     finally:
         conn.close()
+import time
+
+@app.post("/verify")
+def verify(username: str, otp: str):
+    conn = sqlite3.connect("fitness.db", check_same_thread=False)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT otp, otp_expiry, is_verified FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    if user is None:
+        conn.close()
+        return {"error": "User not found"}
+
+    stored_otp = user[0]
+    otp_expiry = user[1]
+    is_verified = user[2]
+
+    # already verified
+    if is_verified == 1:
+        conn.close()
+        return {"message": "Account already verified"}
+
+    # check expiry
+    if time.time() > otp_expiry:
+        conn.close()
+        return {"error": "OTP expired"}
+
+    # check OTP match
+    if otp != stored_otp:
+        conn.close()
+        return {"error": "Invalid OTP"}
+
+    # ✅ success → verify account
+    cursor.execute(
+        "UPDATE users SET is_verified = 1, otp = NULL, otp_expiry = NULL WHERE username = ?",
+        (username,)
+    )
+    conn.commit()
+    conn.close()
+
+    return {"message": "Account verified successfully"}
 
 @app.post("/login")
 @limiter.limit("5/minute")
+@limiter.limit("20/hour")
+@limiter.limit("100/day")
 def login(request: Request, username: str, password: str):
     logger.info(f"Login attempt: {username}")
 
@@ -201,6 +257,10 @@ def login(request: Request, username: str, password: str):
 
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
+    # user[5] = is_verified
+    if user[5] == 0:
+        conn.close()
+        return {"error": "Please verify your account using OTP"}
 
     # ✅ Check user exists FIRST
     if user is None:
