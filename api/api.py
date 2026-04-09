@@ -195,24 +195,70 @@ def register(request: Request, username: str, password: str):
 @limiter.limit("5/minute")
 def login(request: Request, username: str, password: str):
     logger.info(f"Login attempt: {username}")
+
     conn = sqlite3.connect("fitness.db", check_same_thread=False)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
 
-    conn.close()
-
+    # ✅ Check user exists FIRST
     if user is None:
         logger.warning("User not found")
+        conn.close()
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not verify_password(password, user[2]):
-        logger.warning("Wrong password")
-        return {"error": "Invalid password"}
+    import time
+    current_time = time.time()
 
+    # user[3] = failed_attempts
+    # user[4] = lock_until
+    if user[4] is not None and current_time < user[4]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Account is locked. Try later.")
+
+    # ❌ Wrong password
+    if not verify_password(password, user[2]):
+        failed_attempts = user[3] + 1
+
+        logger.warning(f"Wrong password attempt for user: {username}, attempt: {failed_attempts}")
+
+        if failed_attempts >= 5:
+            lock_until = time.time() + 600  # 10 minutes
+
+            cursor.execute(
+                "UPDATE users SET failed_attempts = ?, lock_until = ? WHERE username = ?",
+                (failed_attempts, lock_until, username)
+            )
+            conn.commit()
+            conn.close()
+
+            logger.error(f"Account locked for user: {username}")
+
+            raise HTTPException(status_code=403, detail="Account locked for 10 minutes")
+
+        else:
+            cursor.execute(
+                "UPDATE users SET failed_attempts = ? WHERE username = ?",
+                (failed_attempts, username)
+            )
+            conn.commit()
+            conn.close()
+
+            return {"error": f"Wrong password. Attempts left: {5 - failed_attempts}"}
+
+    # ✅ Correct password
     token = create_access_token({"sub": username})
+
+    cursor.execute(
+        "UPDATE users SET failed_attempts = 0, lock_until = NULL WHERE username = ?",
+        (username,)
+    )
+    conn.commit()
+    conn.close()
+
     logger.info(f"Login success: {username}")
+
     return {"access_token": token}
 
 
