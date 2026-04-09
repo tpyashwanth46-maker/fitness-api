@@ -257,17 +257,17 @@ def login(request: Request, username: str, password: str):
 
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
-    # user[5] = is_verified
-    if user[5] == 0:
-        conn.close()
-        return {"error": "Please verify your account using OTP"}
-
-    # ✅ Check user exists FIRST
+    # user[6] = is_verified
     if user is None:
         logger.warning("User not found")
         conn.close()
         raise HTTPException(status_code=404, detail="User not found")
 
+    if user[6] == 0:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Please verify your account using OTP")
+   
+    
     import time
     current_time = time.time()
 
