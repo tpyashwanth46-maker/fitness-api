@@ -28,6 +28,7 @@ def send_otp_email(to_email, otp):
     msg["To"] = to_email
 
     try:
+        print("DEBUG OTP:", otp)
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
 
