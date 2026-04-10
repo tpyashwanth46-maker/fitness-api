@@ -7,6 +7,39 @@ import numpy as np
 import sqlite3
 import math
 import logging
+import smtplib
+from email.mime.text import MIMEText
+
+import smtplib
+import os
+from email.mime.text import MIMEText
+
+def send_otp_email(to_email, otp):
+    email_user = os.getenv("EMAIL_USER")
+    email_pass = os.getenv("EMAIL_PASS")
+
+    if not email_user or not email_pass:
+        print("Email credentials not set")
+        return
+
+    msg = MIMEText(f"Your OTP is {otp}")
+    msg["Subject"] = "OTP Verification"
+    msg["From"] = email_user
+    msg["To"] = to_email
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+
+        server.login(email_user, email_pass)
+
+        server.send_message(msg)
+        server.quit()
+
+        print(f"OTP sent to {to_email}")
+
+    except Exception as e:
+        print("Email sending failed:", e)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -188,8 +221,8 @@ def register(request: Request, username: str, password: str, email: str):
         conn.commit()
 
         # 🔥 for testing (check app.log)
-        logger.info(f"OTP for {username}: {otp}")
-
+        
+        send_otp_email(email, otp)
         return {"message": "User created. Please verify OTP."}
 
     except sqlite3.IntegrityError:
