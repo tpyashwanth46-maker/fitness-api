@@ -4,11 +4,13 @@ import sys
 import os
 import joblib
 import numpy as np
-import sqlite3
+from sqlalchemy.exc import IntegrityError
 import math
 import logging
 import smtplib
 from email.mime.text import MIMEText
+from db import SessionLocal
+from sqlalchemy import text
 
 import smtplib
 import os
@@ -205,8 +207,7 @@ def register(request: Request, username: str, password: str, email: str):
     logger.info(f"Register attempt: {username}")
 
 
-    conn = sqlite3.connect("fitness.db", check_same_thread=False)
-    cursor = conn.cursor()
+    db = SessionLocal()
 
     try:
         hashed_pw = hash_password(password)
@@ -215,18 +216,19 @@ def register(request: Request, username: str, password: str, email: str):
         otp = str(random.randint(100000, 999999))
         otp_expiry = time.time() + 300  # 5 minutes
 
-        cursor.execute(
-            "INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (?, ?, ?, ?, ?, ?)",
-            (username, hashed_pw, email, 0, otp, otp_expiry)
+        db.execute(
+            text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
+            {"u": username, "p": hashed_pw, "e": email, "v": False, "o": otp, "oe": otp_expiry}
         )
-        conn.commit()
+        db.commit()
 
         # 🔥 for testing (check app.log)
         
         send_otp_email(email, otp)
         return {"message": "User created. Please verify OTP."}
 
-    except sqlite3.IntegrityError:
+    except IntegrityError:
+        db.rollback()
         return {"error": "Username already exists"}
 
     except Exception as e:
@@ -235,19 +237,21 @@ def register(request: Request, username: str, password: str, email: str):
         return {"error": "Registration failed"}
 
     finally:
-        conn.close()
+        db.close()
 import time
 
 @app.post("/verify")
 def verify(username: str, otp: str):
-    conn = sqlite3.connect("fitness.db", check_same_thread=False)
-    cursor = conn.cursor()
+    db = SessionLocal()
 
-    cursor.execute("SELECT otp, otp_expiry, is_verified FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
+    result = db.execute(
+        text("SELECT otp, otp_expiry, is_verified FROM users WHERE username=:u"),
+        {"u": username}
+    )
+    user = result.fetchone()
 
     if user is None:
-        conn.close()
+        db.close()
         return {"error": "User not found"}
 
     stored_otp = user[0]
@@ -256,26 +260,26 @@ def verify(username: str, otp: str):
 
     # already verified
     if is_verified == 1:
-        conn.close()
+        db.close()
         return {"message": "Account already verified"}
 
     # check expiry
     if time.time() > otp_expiry:
-        conn.close()
+        db.close()
         return {"error": "OTP expired"}
 
     # check OTP match
     if otp != stored_otp:
-        conn.close()
+        db.close()
         return {"error": "Invalid OTP"}
 
     # ✅ success → verify account
-    cursor.execute(
-        "UPDATE users SET is_verified = 1, otp = NULL, otp_expiry = NULL WHERE username = ?",
-        (username,)
+    db.execute(
+        text("UPDATE users SET is_verified = TRUE, otp = NULL, otp_expiry = NULL WHERE username = :u"),
+        {"u": username}
     )
-    conn.commit()
-    conn.close()
+    db.commit()
+    db.close()
 
     return {"message": "Account verified successfully"}
 
@@ -286,19 +290,21 @@ def verify(username: str, otp: str):
 def login(request: Request, username: str, password: str):
     logger.info(f"Login attempt: {username}")
 
-    conn = sqlite3.connect("fitness.db", check_same_thread=False)
-    cursor = conn.cursor()
+    db = SessionLocal()
 
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    # user[6] = is_verified
+    result = db.execute(
+        text("SELECT * FROM users WHERE username=:u"),
+        {"u": username}
+    )
+    user = result.fetchone()
+    # user[4] = is_verified
     if user is None:
         logger.warning("User not found")
-        conn.close()
+        db.close()
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user[6] == 0:
-        conn.close()
+    if user[4] == False:
+        db.close()
         raise HTTPException(status_code=403, detail="Please verify your account using OTP")
    
     
@@ -307,49 +313,50 @@ def login(request: Request, username: str, password: str):
 
     # user[3] = failed_attempts
     # user[4] = lock_until
-    if user[4] is not None and current_time < user[4]:
-        conn.close()
+    if user[8] is not None and current_time < user[8]:
+        db.close()
         raise HTTPException(status_code=403, detail="Account is locked. Try later.")
 
     # ❌ Wrong password
     if not verify_password(password, user[2]):
-        failed_attempts = user[3] + 1
+        failed_attempts = user[7] + 1
 
         logger.warning(f"Wrong password attempt for user: {username}, attempt: {failed_attempts}")
 
         if failed_attempts >= 5:
             lock_until = time.time() + 600  # 10 minutes
 
-            cursor.execute(
-                "UPDATE users SET failed_attempts = ?, lock_until = ? WHERE username = ?",
-                (failed_attempts, lock_until, username)
+            db.execute(
+                text("UPDATE users SET failed_attempts = :fa, lock_until = :lu WHERE username = :u"),
+                {"fa": failed_attempts, "lu": lock_until, "u": username}
             )
-            conn.commit()
-            conn.close()
+            db.commit()
+            db.close()
 
             logger.error(f"Account locked for user: {username}")
 
             raise HTTPException(status_code=403, detail="Account locked for 10 minutes")
 
         else:
-            cursor.execute(
-                "UPDATE users SET failed_attempts = ? WHERE username = ?",
-                (failed_attempts, username)
+            db.execute(
+                text("UPDATE users SET failed_attempts = :fa WHERE username = :u"),
+                {"fa": failed_attempts, "u": username}
             )
-            conn.commit()
-            conn.close()
+            db.commit()
+            db.close()
+        
 
             return {"error": f"Wrong password. Attempts left: {5 - failed_attempts}"}
 
     # ✅ Correct password
     token = create_access_token({"sub": username})
 
-    cursor.execute(
-        "UPDATE users SET failed_attempts = 0, lock_until = NULL WHERE username = ?",
-        (username,)
+    db.execute(
+        text("UPDATE users SET failed_attempts = 0, lock_until = NULL WHERE username = :u"),
+        {"u": username}
     )
-    conn.commit()
-    conn.close()
+    db.commit()
+    db.close()
 
     logger.info(f"Login success: {username}")
 
