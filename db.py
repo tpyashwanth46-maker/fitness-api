@@ -7,8 +7,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
+# 🔥 Run DB setup once on startup
 with engine.connect() as conn:
-    # ✅ Create table with ALL required columns
+    # ✅ Create table if not exists
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -19,11 +20,11 @@ with engine.connect() as conn:
             otp_expiry TIMESTAMP,
             is_verified BOOLEAN DEFAULT FALSE,
             failed_attempts INTEGER DEFAULT 0,
-            lock_until FLOAT
+            lock_until FLOAT DEFAULT NULL
         );
     """))
 
-    # ✅ If table already exists, add missing columns safely
+    # ✅ Add missing columns safely (for old DB)
     conn.execute(text("""
         ALTER TABLE users 
         ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0;
@@ -31,7 +32,7 @@ with engine.connect() as conn:
 
     conn.execute(text("""
         ALTER TABLE users 
-        ADD COLUMN IF NOT EXISTS lock_until FLOAT;
+        ADD COLUMN IF NOT EXISTS lock_until FLOAT DEFAULT NULL;
     """))
 
     conn.commit()

@@ -297,7 +297,7 @@ def login(request: Request, username: str, password: str):
         db.close()
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user[4]:
+    if not user[6]:
         db.close()
         raise HTTPException(status_code=403, detail="Please verify your account using OTP")
    
