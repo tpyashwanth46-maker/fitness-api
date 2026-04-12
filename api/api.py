@@ -234,9 +234,9 @@ def register(request: Request, username: str, password: str, email: str):
         return {"error": "Username already exists"}
 
     except Exception as e:
-
+        
         logger.error(f"Register error: {e}")
-        return {"error": "Registration failed"}
+        return {"error": str(e)}
 
     finally:
         db.close()
