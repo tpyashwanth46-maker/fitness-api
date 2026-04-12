@@ -22,36 +22,22 @@ from datetime import datetime
 import os
 import requests
 
-def send_otp_email(to_email, otp):
-    api_key = os.getenv("SENDGRID_API_KEY")
-    email_user = os.getenv("EMAIL_USER")
+from twilio.rest import Client
+import os
 
-    print("DEBUG API KEY:", api_key)
-    print("DEBUG EMAIL USER:", email_user)
+def send_sms_otp(phone, otp):
+    client = Client(
+        os.getenv("TWILIO_SID"),
+        os.getenv("TWILIO_AUTH")
+    )
 
-    url = "https://api.sendgrid.com/v3/mail/send"
+    message = client.messages.create(
+        body=f"Your OTP is {otp}",
+        from_=os.getenv("TWILIO_PHONE"),
+        to=phone
+    )
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "personalizations": [{
-            "to": [{"email": to_email}],
-            "subject": "Your OTP Code"
-        }],
-        "from": {"email": email_user},
-        "content": [{
-            "type": "text/plain",
-            "value": f"Your OTP is: {otp}"
-        }]
-    }
-
-    response = requests.post(url, headers=headers, json=data)
-
-    print("SendGrid:", response.status_code, response.text)
-
+    print("SMS sent:", message.sid)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -211,7 +197,7 @@ import time
 @limiter.limit("3/minute")
 @limiter.limit("10/hour")
 @limiter.limit("20/day")
-def register(request: Request, username: str, password: str, email: str):
+def register(request: Request, username: str, password: str, phone: str):
     logger.info(f"Register attempt: {username}")
 
 
@@ -226,13 +212,13 @@ def register(request: Request, username: str, password: str, email: str):
 
         db.execute(
             text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
-            {"u": username, "p": hashed_pw, "e": email, "v": False, "o": otp, "oe": otp_expiry}
+            {"u": username, "p": hashed_pw, "e": phone, "v": False, "o": otp, "oe": otp_expiry}
         )
         db.commit()
 
         # 🔥 for testing (check app.log)
         
-        send_otp_email(email, otp)
+        send_sms_otp(phone, otp)
         return {"message": "User created. Please verify OTP."}
 
     except IntegrityError:
