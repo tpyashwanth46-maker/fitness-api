@@ -7,8 +7,8 @@ import numpy as np
 from sqlalchemy.exc import IntegrityError
 import math
 import logging
-import smtplib
-from email.mime.text import MIMEText
+import requests
+
 from db import SessionLocal
 from sqlalchemy import text
 from datetime import datetime, timedelta
@@ -19,33 +19,36 @@ from datetime import datetime
 
 
 
+import os
+import requests
+
 def send_otp_email(to_email, otp):
-    email_user = os.getenv("EMAIL_USER")
-    email_pass = os.getenv("EMAIL_PASS")
+    api_key = os.getenv("SENDGRID_API_KEY")
 
-    if not email_user or not email_pass:
-        print("Email credentials not set")
-        return
+    url = "https://api.sendgrid.com/v3/mail/send"
 
-    msg = MIMEText(f"Your OTP is {otp}")
-    msg["Subject"] = "OTP Verification"
-    msg["From"] = email_user
-    msg["To"] = to_email
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
 
-    try:
-        print("DEBUG OTP:", otp)
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
+    data = {
+        "personalizations": [{
+            "to": [{"email": to_email}],
+            "subject": "Your OTP Code"
+        }],
+        "from": {"email": os.getenv("EMAIL_USER")},
+        "content": [{
+            "type": "text/plain",
+            "value": f"Your OTP is: {otp}"
+        }]
+    }
 
-        server.login(email_user, email_pass)
+    response = requests.post(url, headers=headers, json=data)
 
-        server.send_message(msg)
-        server.quit()
+    print("SendGrid:", response.status_code, response.text)
 
-        print(f"OTP sent to {to_email}")
-
-    except Exception as e:
-        print("Email sending failed:", e)
+    
 
 logging.basicConfig(
     level=logging.INFO,
@@ -234,7 +237,7 @@ def register(request: Request, username: str, password: str, email: str):
         return {"error": "Username already exists"}
 
     except Exception as e:
-        
+
         logger.error(f"Register error: {e}")
         return {"error": str(e)}
 
