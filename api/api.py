@@ -218,7 +218,10 @@ def register(request: Request, username: str, password: str, phone: str):
 
         # 🔥 for testing (check app.log)
         
-        send_sms_otp(phone, otp)
+        try:
+            send_sms_otp(phone, otp)
+        except Exception as e:
+            logger.error(f"SMS failed: {e}")
         return {"message": "User created. Please verify OTP."}
 
     except IntegrityError:
@@ -286,78 +289,85 @@ def login(request: Request, username: str, password: str):
 
     db = SessionLocal()
 
-    result = db.execute(
-        text("SELECT * FROM users WHERE username=:u"),
-        {"u": username}
-    )
-    user = result.fetchone()
-    # user[4] = is_verified
-    if user is None:
-        logger.warning("User not found")
+    try:
+        result = db.execute(
+            text("SELECT * FROM users WHERE username=:u"),
+            {"u": username}
+        )
+        user = result.fetchone()
+
+        if user is None:
+            logger.warning("User not found")
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # ✅ Check verification
+        if not user[6]:
+            raise HTTPException(status_code=403, detail="Please verify your account using OTP")
+
+        import time
+        current_time = time.time()
+
+        # ✅ Check if account is locked
+        if user[8] is not None and current_time < user[8]:
+            raise HTTPException(status_code=403, detail="Account is locked. Try later.")
+
+        # ❌ Wrong password
+        if not verify_password(password, user[2]):
+            failed_attempts = user[7] + 1
+
+            logger.warning(f"Wrong password for {username}, attempt {failed_attempts}")
+
+            if failed_attempts >= 5:
+                lock_until = time.time() + 600  # 10 minutes
+
+                db.execute(
+                    text("""
+                        UPDATE users 
+                        SET failed_attempts = :fa, lock_until = :lu 
+                        WHERE username = :u
+                    """),
+                    {"fa": failed_attempts, "lu": lock_until, "u": username}
+                )
+
+                db.commit()
+
+                logger.error(f"Account locked for user: {username}")
+                raise HTTPException(status_code=403, detail="Account locked for 10 minutes")
+
+            else:
+                db.execute(
+                    text("""
+                        UPDATE users 
+                        SET failed_attempts = :fa 
+                        WHERE username = :u
+                    """),
+                    {"fa": failed_attempts, "u": username}
+                )
+
+                db.commit()
+                return {"error": f"Wrong password. Attempts left: {5 - failed_attempts}"}
+
+        # ✅ Correct password
+        token = create_access_token({"sub": username})
+
+        # 🔄 Reset attempts after success
+        db.execute(
+            text("""
+                UPDATE users 
+                SET failed_attempts = 0, lock_until = NULL 
+                WHERE username = :u
+            """),
+            {"u": username}
+        )
+
+        db.commit()
+
+        logger.info(f"Login success: {username}")
+
+        return {"access_token": token}
+
+    finally:
         db.close()
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not user[6]:
-        db.close()
-        raise HTTPException(status_code=403, detail="Please verify your account using OTP")
-   
-    
-    import time
-    current_time = time.time()
-
-    # user[4] = is_verified
-    # user[7] = failed_attempts
-    # user[8] = lock_until
-    if user[8] is not None and current_time < user[8]:
-        db.close()
-        raise HTTPException(status_code=403, detail="Account is locked. Try later.")
-
-    # ❌ Wrong password
-    if not verify_password(password, user[2]):
-        failed_attempts = user[7] + 1
-
-        logger.warning(f"Wrong password attempt for user: {username}, attempt: {failed_attempts}")
-
-        if failed_attempts >= 5:
-            lock_until = time.time() + 600  # 10 minutes
-
-            db.execute(
-                text("UPDATE users SET failed_attempts = :fa, lock_until = :lu WHERE username = :u"),
-                {"fa": failed_attempts, "lu": lock_until, "u": username}
-            )
-            db.commit()
-            db.close()
-
-            logger.error(f"Account locked for user: {username}")
-
-            raise HTTPException(status_code=403, detail="Account locked for 10 minutes")
-
-        else:
-            db.execute(
-                text("UPDATE users SET failed_attempts = :fa WHERE username = :u"),
-                {"fa": failed_attempts, "u": username}
-            )
-            db.commit()
-            db.close()
-        
-
-            return {"error": f"Wrong password. Attempts left: {5 - failed_attempts}"}
-
-    # ✅ Correct password
-    token = create_access_token({"sub": username})
-
-    db.execute(
-        text("UPDATE users SET failed_attempts = 0, lock_until = NULL WHERE username = :u"),
-        {"u": username}
-    )
-    db.commit()
-    db.close()
-
-    logger.info(f"Login success: {username}")
-
-    return {"access_token": token}
-
-
 # ---------------- HOME ----------------
 @app.get("/")
 def home():
