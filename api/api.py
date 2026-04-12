@@ -11,10 +11,13 @@ import smtplib
 from email.mime.text import MIMEText
 from db import SessionLocal
 from sqlalchemy import text
+from datetime import datetime, timedelta
+from datetime import datetime
 
-import smtplib
-import os
-from email.mime.text import MIMEText
+
+
+
+
 
 def send_otp_email(to_email, otp):
     email_user = os.getenv("EMAIL_USER")
@@ -137,8 +140,7 @@ app.add_middleware(
 )
 
 # ---------------- DB INIT ----------------
-from database import create_table
-create_table()
+
 
 limiter = Limiter(key_func=user_key_func)
 app.state.limiter = limiter
@@ -214,7 +216,7 @@ def register(request: Request, username: str, password: str, email: str):
 
         # 🔥 generate OTP
         otp = str(random.randint(100000, 999999))
-        otp_expiry = time.time() + 300  # 5 minutes
+        otp_expiry = datetime.utcnow() + timedelta(minutes=5)  # 5 minutes
 
         db.execute(
             text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
@@ -264,7 +266,7 @@ def verify(username: str, otp: str):
         return {"message": "Account already verified"}
 
     # check expiry
-    if time.time() > otp_expiry:
+    if datetime.utcnow() > otp_expiry:
         db.close()
         return {"error": "OTP expired"}
 
@@ -303,7 +305,7 @@ def login(request: Request, username: str, password: str):
         db.close()
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user[4] == False:
+    if not user[4]:
         db.close()
         raise HTTPException(status_code=403, detail="Please verify your account using OTP")
    
@@ -311,8 +313,9 @@ def login(request: Request, username: str, password: str):
     import time
     current_time = time.time()
 
-    # user[3] = failed_attempts
-    # user[4] = lock_until
+    # user[4] = is_verified
+    # user[7] = failed_attempts
+    # user[8] = lock_until
     if user[8] is not None and current_time < user[8]:
         db.close()
         raise HTTPException(status_code=403, detail="Account is locked. Try later.")
