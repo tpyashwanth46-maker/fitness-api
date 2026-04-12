@@ -24,6 +24,10 @@ import requests
 
 def send_otp_email(to_email, otp):
     api_key = os.getenv("SENDGRID_API_KEY")
+    email_user = os.getenv("EMAIL_USER")
+
+    print("DEBUG API KEY:", api_key)
+    print("DEBUG EMAIL USER:", email_user)
 
     url = "https://api.sendgrid.com/v3/mail/send"
 
@@ -37,7 +41,7 @@ def send_otp_email(to_email, otp):
             "to": [{"email": to_email}],
             "subject": "Your OTP Code"
         }],
-        "from": {"email": os.getenv("EMAIL_USER")},
+        "from": {"email": email_user},
         "content": [{
             "type": "text/plain",
             "value": f"Your OTP is: {otp}"
@@ -48,7 +52,6 @@ def send_otp_email(to_email, otp):
 
     print("SendGrid:", response.status_code, response.text)
 
-    
 
 logging.basicConfig(
     level=logging.INFO,
