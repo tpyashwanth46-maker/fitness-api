@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 import math
 import logging
 import requests
-
+import bcrypt
 from db import SessionLocal
 from sqlalchemy import text
 from datetime import datetime, timedelta
@@ -20,10 +20,23 @@ from datetime import datetime
 
 
 import os
-import requests
+
 
 from twilio.rest import Client
 import os
+
+def success_response(data=None, message=None):
+    return {
+        "status": "success",
+        "data": data,
+        "message": message
+    }
+
+def error_response(message):
+    return {
+        "status": "error",
+        "message": message
+    }
 
 def send_sms_otp(phone, otp):
     client = Client(
@@ -38,7 +51,7 @@ def send_sms_otp(phone, otp):
     )
 
     print("SMS sent:", message.sid)
-
+    
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -144,7 +157,7 @@ def rate_limit_handler(request, exc):
     logger.warning("Rate limit exceeded")
     return JSONResponse(
         status_code=429,
-        content={"detail": "Too many requests. Please try again later."}
+        content=error_response("Too many requests. Please try again later.")
     )
 
 # ---------------- JWT SECURITY ----------------
@@ -208,11 +221,12 @@ def register(request: Request, username: str, password: str, phone: str):
 
         # 🔥 generate OTP
         otp = str(random.randint(100000, 999999))
+        hashed_otp = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
         otp_expiry = datetime.utcnow() + timedelta(minutes=5)  # 5 minutes
 
         db.execute(
             text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
-            {"u": username, "p": hashed_pw, "e": phone, "v": False, "o": otp, "oe": otp_expiry}
+            {"u": username, "p": hashed_pw, "e": phone, "v": False, "o": hashed_otp, "oe": otp_expiry}
         )
         db.commit()
 
@@ -222,22 +236,23 @@ def register(request: Request, username: str, password: str, phone: str):
             send_sms_otp(phone, otp)
         except Exception as e:
             logger.error(f"SMS failed: {e}")
-        return {"message": "User created. Please verify OTP."}
+        return success_response(message="User created. Please verify OTP.")
 
     except IntegrityError:
         db.rollback()
-        return {"error": "Username already exists"}
+        return error_response("Username already exists")
 
     except Exception as e:
 
         logger.error(f"Register error: {e}")
-        return {"error": str(e)}
+        return error_response(str(e))
 
     finally:
         db.close()
-import time
-
+        
 @app.post("/verify")
+@limiter.limit("5/minute")
+@limiter.limit("5/minute", key_func=user_key_func)
 def verify(username: str, otp: str):
     db = SessionLocal()
 
@@ -249,7 +264,7 @@ def verify(username: str, otp: str):
 
     if user is None:
         db.close()
-        return {"error": "User not found"}
+        return error_response("User not found")
 
     stored_otp = user[0]
     otp_expiry = user[1]
@@ -258,17 +273,17 @@ def verify(username: str, otp: str):
     # already verified
     if is_verified == 1:
         db.close()
-        return {"message": "Account already verified"}
+        return success_response(message="Account already verified")
 
     # check expiry
     if datetime.utcnow() > otp_expiry:
         db.close()
-        return {"error": "OTP expired"}
+        return error_response("OTP expired")
 
     # check OTP match
-    if otp != stored_otp:
+    if not bcrypt.checkpw(otp.encode(), stored_otp.encode()):
         db.close()
-        return {"error": "Invalid OTP"}
+        return error_response("Invalid OTP")
 
     # ✅ success → verify account
     db.execute(
@@ -278,7 +293,7 @@ def verify(username: str, otp: str):
     db.commit()
     db.close()
 
-    return {"message": "Account verified successfully"}
+    return success_response(message="Account verified successfully")
 
 @app.post("/login")
 @limiter.limit("5/minute")
@@ -345,7 +360,7 @@ def login(request: Request, username: str, password: str):
                 )
 
                 db.commit()
-                return {"error": f"Wrong password. Attempts left: {5 - failed_attempts}"}
+                return error_response(f"Wrong password. Attempts left: {5 - failed_attempts}")
 
         # ✅ Correct password
         token = create_access_token({"sub": username})
@@ -364,24 +379,23 @@ def login(request: Request, username: str, password: str):
 
         logger.info(f"Login success: {username}")
 
-        return {"access_token": token}
+        return success_response(data={"access_token": token})
 
     finally:
         db.close()
 # ---------------- HOME ----------------
 @app.get("/")
 def home():
-    return {"message": "Fitness API is running successfully"}
+    return success_response(message="Fitness API is running successfully")
 
 
 # ---------------- HEALTH CHECK ----------------
 @app.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "calories_model_loaded": calories_model is not None,
-        "bio_age_model_loaded": bio_age_model is not None
-    }
+    return success_response(data={
+    "calories_model_loaded": calories_model is not None,
+    "bio_age_model_loaded": bio_age_model is not None
+})
 
 
 # ---------------- CALORIES API ----------------
@@ -416,10 +430,9 @@ def predict_calories(
 
         prediction = calories_model.predict(features)
 
-        return {
-            "calories_burned": float(prediction[0]),
-            "status": "success"
-        }
+        return success_response(data={
+            "calories_burned": float(prediction[0])
+        })
 
     except Exception as e:
         logger.error(f"Calories prediction error: {e}")
@@ -525,11 +538,9 @@ def predict_bio_age(
         # ROUND
         bio_age = round(bio_age, 1)
 
-        return {
-        
-            "biological_age": float(bio_age),
-            "status": "success"
-        }
+        return success_response(data={
+            "biological_age": float(bio_age)
+        })
 
     except Exception as e:
         logger.error(f"Bio age prediction error: {e}")
