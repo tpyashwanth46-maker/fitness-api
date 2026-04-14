@@ -253,7 +253,7 @@ def register(request: Request, username: str, password: str, phone: str):
 @app.post("/verify")
 @limiter.limit("5/minute")
 @limiter.limit("5/minute", key_func=user_key_func)
-def verify(username: str, otp: str):
+def verify(request: Request, username: str, otp: str):
     db = SessionLocal()
 
     result = db.execute(
