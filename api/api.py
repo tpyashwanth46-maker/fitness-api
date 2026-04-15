@@ -250,8 +250,8 @@ def register(request: Request, data: RegisterInput):
         otp_expiry = datetime.utcnow() + timedelta(minutes=5)  # 5 minutes
 
         db.execute(
-            text("INSERT INTO users (username, password, phone, is_verified, otp, otp_expiry) VALUES (:u, :p, :ph, :v, :o, :oe)"),
-            {"u": username, "p": hashed_pw, "ph": phone, "v": False, "o": hashed_otp, "oe": otp_expiry}
+            text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
+            {"u": username, "p": hashed_pw, "e": email, "v": False, "o": hashed_otp, "oe": otp_expiry}
         )
         db.commit()
 
