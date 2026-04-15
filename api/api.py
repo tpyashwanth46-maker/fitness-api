@@ -257,7 +257,7 @@ def register(request: Request, data: RegisterInput):
         # 🔥 for testing (check app.log)
         
         try:
-            send_sms_otp(phone, otp)
+            print(f"OTP for {email} is {otp}")
         except Exception as e:
             logger.error(f"SMS failed: {e}")
         return success_response(message="User created. Please verify OTP.")
