@@ -235,7 +235,8 @@ def register(request: Request, data: RegisterInput):
 
     username = data.username
     password = data.password
-    email = data.phone   # temporary (since your input still uses phone field)
+    email = data.phone   # storing phone inside email column
+    phone = email        # reuse for Twilio  # temporary (since your input still uses phone field)
 
 
     db = SessionLocal()
@@ -249,15 +250,15 @@ def register(request: Request, data: RegisterInput):
         otp_expiry = datetime.utcnow() + timedelta(minutes=5)  # 5 minutes
 
         db.execute(
-            text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
-            {"u": username, "p": hashed_pw, "e": email, "v": False, "o": hashed_otp, "oe": otp_expiry}
+            text("INSERT INTO users (username, password, phone, is_verified, otp, otp_expiry) VALUES (:u, :p, :ph, :v, :o, :oe)"),
+            {"u": username, "p": hashed_pw, "ph": phone, "v": False, "o": hashed_otp, "oe": otp_expiry}
         )
         db.commit()
 
         # 🔥 for testing (check app.log)
         
         try:
-            print(f"OTP for {email} is {otp}")
+            send_sms_otp(phone, otp)
         except Exception as e:
             logger.error(f"SMS failed: {e}")
         return success_response(message="User created. Please verify OTP.")
