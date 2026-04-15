@@ -226,18 +226,33 @@ except Exception as e:
 import random
 import time
 
+from fastapi import Query
+import re
+
 @app.post("/register")
 @limiter.limit("3/minute")
 @limiter.limit("10/hour")
 @limiter.limit("20/day")
-def register(request: Request, data: RegisterInput):
-    logger.info(f"Register attempt: {data.username}")
+def register(
+    request: Request,
+    username: str = Query(..., min_length=3, max_length=20),
+    password: str = Query(..., min_length=6),
+    phone: str = Query(...)
+):
+    logger.info(f"Register attempt: {username}")
 
-    username = data.username
-    password = data.password
-    email = data.phone   # storing phone inside email column
-    phone = email        # reuse for Twilio  # temporary (since your input still uses phone field)
+    # 🔒 username validation
+    username = username.strip().lower()
+    if not re.match(r"^[a-z0-9_]+$", username):
+        return error_response("Username must contain only letters, numbers, underscore")
 
+    # 🔒 phone validation
+    phone = phone.strip()
+    if not re.match(r"^\+?[0-9]{10,15}$", phone):
+        return error_response("Invalid phone number")
+
+    # 📌 store phone in email column
+    email = phone
 
     db = SessionLocal()
 
@@ -247,20 +262,30 @@ def register(request: Request, data: RegisterInput):
         # 🔥 generate OTP
         otp = str(random.randint(100000, 999999))
         hashed_otp = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
-        otp_expiry = datetime.utcnow() + timedelta(minutes=5)  # 5 minutes
+        otp_expiry = datetime.utcnow() + timedelta(minutes=5)
 
         db.execute(
-            text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
-            {"u": username, "p": hashed_pw, "e": email, "v": False, "o": hashed_otp, "oe": otp_expiry}
+            text("""
+                INSERT INTO users (username, password, email, is_verified, otp, otp_expiry)
+                VALUES (:u, :p, :e, :v, :o, :oe)
+            """),
+            {
+                "u": username,
+                "p": hashed_pw,
+                "e": email,
+                "v": False,
+                "o": hashed_otp,
+                "oe": otp_expiry
+            }
         )
         db.commit()
 
-        # 🔥 for testing (check app.log)
-        
+        # 📱 send OTP via Twilio
         try:
             send_sms_otp(phone, otp)
         except Exception as e:
             logger.error(f"SMS failed: {e}")
+
         return success_response(message="User created. Please verify OTP.")
 
     except IntegrityError:
@@ -268,7 +293,7 @@ def register(request: Request, data: RegisterInput):
         return error_response("Username already exists")
 
     except Exception as e:
-
+        
         logger.error(f"Register error: {e}")
         return error_response(str(e))
 
