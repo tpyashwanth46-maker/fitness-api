@@ -90,7 +90,7 @@ from auth.password_handler import hash_password, verify_password
 from fastapi.security import HTTPBearer
 
 # ✅ ADD THIS (NEW)
-from pydantic import BaseModel
+
 
 class CaloriesInput(BaseModel):
     age: int = Field(..., ge=10, le=100)
@@ -111,7 +111,7 @@ class BioAgeInput(BaseModel):
     situps: int = Field(..., ge=0, le=200)
     broad_jump: float = Field(..., ge=0, le=300)
 
-from pydantic import BaseModel, Field, validator
+from pydantic import  validator
 import re
 
 class RegisterInput(BaseModel):
@@ -231,7 +231,11 @@ import time
 @limiter.limit("10/hour")
 @limiter.limit("20/day")
 def register(request: Request, data: RegisterInput):
-    logger.info(f"Register attempt: {username}")
+    logger.info(f"Register attempt: {data.username}")
+
+    username = data.username
+    password = data.password
+    phone = data.phone
 
 
     db = SessionLocal()
@@ -245,8 +249,8 @@ def register(request: Request, data: RegisterInput):
         otp_expiry = datetime.utcnow() + timedelta(minutes=5)  # 5 minutes
 
         db.execute(
-            text("INSERT INTO users (username, password, email, is_verified, otp, otp_expiry) VALUES (:u, :p, :e, :v, :o, :oe)"),
-            {"u": username, "p": hashed_pw, "e": phone, "v": False, "o": hashed_otp, "oe": otp_expiry}
+            text("INSERT INTO users (username, password, phone, is_verified, otp, otp_expiry) VALUES (:u, :p, :ph, :v, :o, :oe)"),
+            {"u": username, "p": hashed_pw, "ph": phone, "v": False, "o": hashed_otp, "oe": otp_expiry}
         )
         db.commit()
 
