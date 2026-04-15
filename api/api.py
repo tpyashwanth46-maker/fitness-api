@@ -111,7 +111,27 @@ class BioAgeInput(BaseModel):
     situps: int = Field(..., ge=0, le=200)
     broad_jump: float = Field(..., ge=0, le=300)
 
+from pydantic import BaseModel, Field, validator
+import re
 
+class RegisterInput(BaseModel):
+    username: str = Field(..., min_length=3, max_length=20)
+    password: str = Field(..., min_length=6)
+    phone: str
+
+    @validator("username")
+    def clean_username(cls, v):
+        v = v.strip().lower()
+        if not re.match(r"^[a-z0-9_]+$", v):
+            raise ValueError("Username must contain only letters, numbers, underscore")
+        return v
+
+    @validator("phone")
+    def clean_phone(cls, v):
+        v = v.strip()
+        if not re.match(r"^\+?[0-9]{10,15}$", v):
+            raise ValueError("Invalid phone number")
+        return v
 app = FastAPI()
 logger.info("API started")
 @app.middleware("http")
@@ -210,7 +230,7 @@ import time
 @limiter.limit("3/minute")
 @limiter.limit("10/hour")
 @limiter.limit("20/day")
-def register(request: Request, username: str, password: str, phone: str):
+def register(request: Request, data: RegisterInput):
     logger.info(f"Register attempt: {username}")
 
 
